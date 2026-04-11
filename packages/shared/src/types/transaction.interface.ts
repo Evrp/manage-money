@@ -14,7 +14,7 @@ export interface ISlipData {
 }
 
 export interface ITransaction {
-  _id?: string;
+  _id?: any;
   userId: string;
   categoryId: string;
   type: TransactionType;

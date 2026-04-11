@@ -5,7 +5,7 @@ export enum CategoryType {
 }
 
 export interface ICategory {
-  _id?: string;
+  _id?: any;
   userId: string;
   name: string;
   type: CategoryType;

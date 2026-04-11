@@ -74,7 +74,8 @@ export class SlipsService {
       confirmData,
     );
 
-    slipUpload.transactionId = transaction._id as string;
+    slipUpload.status = SlipUploadStatus.SUCCESS;
+    slipUpload.transactionId = (transaction._id as any).toString();
     await slipUpload.save();
 
     return transaction;
@@ -134,8 +135,8 @@ export class SlipsService {
 
       const textResponse = response.data.candidates[0].content.parts[0].text;
       return JSON.parse(textResponse);
-    } catch (error: any) {
-      console.error("Gemini API Error:", error.response?.data || error.message);
+    } catch (error) {
+      console.error("Gemini API Error:", (error as any).response?.data || (error as any).message);
       throw new Error("Gemini API integration failed");
     }
   }

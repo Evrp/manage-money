@@ -11,6 +11,10 @@
     "sourceMap": true,
     "outDir": "dist",
     "baseUrl": "./",
+    "paths": {
+      "@moneyflow/shared": ["../../packages/shared/src/index.ts"],
+      "@moneyflow/shared/*": ["../../packages/shared/src/*"]
+    },
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": false,

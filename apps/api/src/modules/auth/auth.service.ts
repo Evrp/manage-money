@@ -18,10 +18,18 @@ export class AuthService {
   async validateLineToken(idToken: string) {
     try {
       const channelId = process.env.LINE_CHANNEL_ID;
-      const response = await axios.get('https://api.line.me/oauth2/v2.1/verify', {
-        params: {
-          id_token: idToken,
-          client_id: channelId,
+      if (!channelId) {
+        console.error('LINE_CHANNEL_ID is not defined in environment variables');
+        throw new UnauthorizedException('Server configuration error: missing LINE_CHANNEL_ID');
+      }
+
+      const params = new URLSearchParams();
+      params.append('id_token', idToken);
+      params.append('client_id', channelId);
+
+      const response = await axios.post('https://api.line.me/oauth2/v2.1/verify', params, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
         },
       });
 
@@ -30,29 +38,31 @@ export class AuthService {
         throw new UnauthorizedException('Invalid LINE token');
       }
 
-      let user = await this.userModel.findOne({ lineUserId: sub });
+      // Atomic find and update or create
+      const user = await this.userModel.findOneAndUpdate(
+        { lineUserId: sub },
+        { 
+          $set: { 
+            displayName: name, 
+            pictureUrl: picture, 
+            email: email 
+          },
+          $setOnInsert: { 
+            financialScore: 50 
+          }
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
 
-      if (!user) {
-        // Create new user
-        user = await this.userModel.create({
-          lineUserId: sub,
-          displayName: name,
-          pictureUrl: picture,
-          email: email,
-          financialScore: 50, // Starting score
-        });
-
+      // Check if it was a new user by looking at categories
+      const categoryCount = await this.categoryModel.countDocuments({ userId: user._id });
+      if (categoryCount === 0) {
         // Initialize default categories for new user
         const categories = DEFAULT_CATEGORIES.map(cat => ({
           ...cat,
           userId: user._id,
         }));
         await this.categoryModel.insertMany(categories);
-      } else {
-        // Update existing user info
-        user.displayName = name;
-        user.pictureUrl = picture;
-        await user.save();
       }
 
       const payload = { sub: user._id, lineUserId: user.lineUserId };
@@ -61,7 +71,7 @@ export class AuthService {
         user,
       };
     } catch (error) {
-      console.error('LINE verification error:', error.response?.data || error.message);
+      console.error('LINE verification error:', (error as any).response?.data || (error as any).message);
       throw new UnauthorizedException('Failed to verify LINE token');
     }
   }

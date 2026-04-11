@@ -6,7 +6,7 @@ export enum Theme {
 }
 
 export interface IUser {
-  _id?: string;
+  _id?: any;
   lineUserId: string;
   displayName: string;
   pictureUrl: string;

@@ -6,7 +6,7 @@ export enum SlipUploadStatus {
 }
 
 export interface ISlipUpload {
-  _id?: string;
+  _id?: any;
   userId: string;
   imageUrl: string;
   status: SlipUploadStatus;

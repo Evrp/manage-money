@@ -28,7 +28,7 @@ export class NotificationsService {
         },
       );
     } catch (error) {
-      console.error('LINE Push Message Error:', error.response?.data || error.message);
+      console.error('LINE Push Message Error:', (error as any).response?.data || (error as any).message);
     }
   }
 
