@@ -1,0 +1,22 @@
+{
+  "name": "moneyflow",
+  "version": "1.0.0",
+  "description": "MoneyFlow - LINE LIFF Personal Finance Management",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "install:all": "npm install && npm install --workspaces",
+    "lint": "npm run lint --workspaces"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.3.3",
+    "prettier": "^3.2.5",
+    "eslint": "^8.56.0"
+  }
+}

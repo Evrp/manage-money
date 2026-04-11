@@ -1,0 +1,35 @@
+import { Module } from "@nestjs/common";
+import { ConfigModule } from "@nestjs/config";
+import { MongooseModule } from "@nestjs/mongoose";
+import { AppController } from "./app.controller";
+import { AppService } from "./app.service";
+import { AuthModule } from "./modules/auth/auth.module";
+import { CategoriesModule } from "./modules/categories/categories.module";
+import { TransactionsModule } from "./modules/transactions/transactions.module";
+import { BudgetsModule } from "./modules/budgets/budgets.module";
+import { SlipsModule } from "./modules/slips/slips.module";
+import { DashboardModule } from "./modules/dashboard/dashboard.module";
+import { NotificationsModule } from "./modules/notifications/notifications.module";
+import { WebhookModule } from "./modules/webhook/webhook.module";
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
+    MongooseModule.forRoot(
+      process.env.MONGODB_URI || "mongodb://localhost/moneyflow",
+    ),
+    AuthModule,
+    CategoriesModule,
+    TransactionsModule,
+    BudgetsModule,
+    SlipsModule,
+    DashboardModule,
+    NotificationsModule,
+    WebhookModule,
+  ],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule {}

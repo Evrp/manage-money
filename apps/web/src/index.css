@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --primary: 142 70% 45%; /* LINE Green #06C755 */
+    --accent: 228 35% 15%; /* Dark Navy #1A1F36 */
+  }
+}
+
+body {
+  font-family: 'IBM Plex Sans Thai', 'IBM Plex Sans', sans-serif;
+  @apply text-slate-900 antialiased;
+}
