@@ -59,7 +59,10 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ initialData, onClose,
       alert('กรุณากรอกข้อมูลให้ครบถ้วน');
       return;
     }
-    onSubmit(formData);
+    onSubmit({
+      ...formData,
+      amount: Number(formData.amount)
+    });
   };
 
   return (
