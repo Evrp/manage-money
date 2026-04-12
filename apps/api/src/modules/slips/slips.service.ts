@@ -18,35 +18,10 @@ export class SlipsService {
   ) {}
 
   async processUpload(userId: string, file: Express.Multer.File) {
-    let processedBuffer = file.buffer;
-    let mimeType = file.mimetype;
-    let fileName = `slips/${userId}/${Date.now()}_${file.originalname}`;
-
-    // 1. Compress and Resize if it's an image
-    if (file.mimetype.startsWith("image/")) {
-      try {
-        processedBuffer = await sharp(file.buffer)
-          .resize({ width: 1200, withoutEnlargement: true })
-          .webp({ quality: 80 })
-          .toBuffer();
-        mimeType = "image/webp";
-        fileName = fileName.replace(/\.[^/.]+$/, "") + ".webp";
-      } catch (error) {
-        console.error("Image processing error:", error);
-        // Fallback to original if sharp fails
-      }
-    }
-
-    // 2. Upload to Firebase Storage
-    const bucket = this.firebaseService.getBucket();
-    const fileRef = bucket.file(fileName);
-    await fileRef.save(processedBuffer, {
-      contentType: mimeType,
-      metadata: { userId },
-    });
-
-    // 3. Generate Signed URL (valid for 1 hour)
-    const imageUrl = await this.firebaseService.getSignedUrl(fileName);
+    const { imageUrl, processedBuffer } = await this.uploadToStorage(
+      userId,
+      file,
+    );
 
     // Create record
     const slipUpload = await this.slipUploadModel.create({
@@ -58,8 +33,8 @@ export class SlipsService {
     try {
       // 2. OCR with Google Gemini API
       const extractedData = await this.extractWithGemini(
-        file.buffer.toString("base64"),
-        file.mimetype,
+        processedBuffer.toString("base64"),
+        "image/webp", // We processed it to webp
       );
 
       slipUpload.extractedData = extractedData;
@@ -79,6 +54,40 @@ export class SlipsService {
       console.error("OCR Processing Error:", error);
       throw new BadRequestException("Failed to process slip OCR with Gemini");
     }
+  }
+
+  async uploadOnly(userId: string, file: Express.Multer.File) {
+    const { imageUrl } = await this.uploadToStorage(userId, file);
+    return { imageUrl };
+  }
+
+  private async uploadToStorage(userId: string, file: Express.Multer.File) {
+    let processedBuffer = file.buffer;
+    let mimeType = file.mimetype;
+    let fileName = `slips/${userId}/${Date.now()}_${file.originalname}`;
+
+    if (file.mimetype.startsWith("image/")) {
+      try {
+        processedBuffer = await sharp(file.buffer)
+          .resize({ width: 1200, withoutEnlargement: true })
+          .webp({ quality: 80 })
+          .toBuffer();
+        mimeType = "image/webp";
+        fileName = fileName.replace(/\.[^/.]+$/, "") + ".webp";
+      } catch (error) {
+        console.error("Image processing error:", error);
+      }
+    }
+
+    const bucket = this.firebaseService.getBucket();
+    const fileRef = bucket.file(fileName);
+    await fileRef.save(processedBuffer, {
+      contentType: mimeType,
+      metadata: { userId },
+    });
+
+    const imageUrl = await this.firebaseService.getSignedUrl(fileName);
+    return { fileName, imageUrl, processedBuffer, mimeType };
   }
 
   async confirm(

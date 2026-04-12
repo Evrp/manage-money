@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import Layout from '../components/layout/Layout';
-import { Search, Filter, Calendar, ArrowUpRight, ArrowDownLeft, X, Loader2 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { Search, Filter, Calendar, ArrowUpRight, ArrowDownLeft, X, Loader2, Trash2 } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 
 interface Transaction {
@@ -16,12 +16,13 @@ interface Transaction {
 }
 
 const TransactionsPage = () => {
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
 
-  // Fetch transactions based on filter (mocking month/year from selectedDate)
+  // Fetch transactions
   const dateObj = new Date(selectedDate);
   const { data: transactionsResponse, isLoading } = useQuery({
     queryKey: ['transactions', activeTab, dateObj.getMonth() + 1, dateObj.getFullYear()],
@@ -38,7 +39,7 @@ const TransactionsPage = () => {
     if (!searchTerm) return transactions;
     return transactions.filter((t: Transaction) => 
       t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.categoryName.toLowerCase().includes(searchTerm.toLowerCase())
+      t.categoryName?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [transactions, searchTerm]);
 
@@ -54,6 +55,19 @@ const TransactionsPage = () => {
     });
     return groups;
   }, [filteredTransactions]);
+
+  // Delete transaction mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/transactions/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['recent-transactions'] });
+      setSelectedTransaction(null);
+    },
+  });
 
   const tabs = [
     { id: 'all', label: 'ทั้งหมด' },
@@ -198,12 +212,24 @@ const TransactionsPage = () => {
               </div>
             </div>
             
-            <div className="p-4 bg-gray-50 border-t border-gray-100">
+            <div className="p-4 bg-gray-50 border-t border-gray-100 flex gap-3">
               <button 
                 onClick={() => setSelectedTransaction(null)}
-                className="w-full py-4 bg-white border border-gray-200 rounded-2xl font-bold text-gray-500 hover:bg-gray-100 transition-all"
+                className="flex-1 py-4 bg-white border border-gray-200 rounded-2xl font-bold text-gray-500 hover:bg-gray-100 transition-all"
               >
-                ปิดหน้าต่าง
+                ปิด
+              </button>
+              <button 
+                onClick={() => {
+                  if (window.confirm('คุณต้องการลบรายการนี้ใช่หรือไม่?')) {
+                    deleteMutation.mutate(selectedTransaction._id);
+                  }
+                }}
+                disabled={deleteMutation.isPending}
+                className="flex-1 py-4 bg-red-50 text-red-500 border border-red-100 rounded-2xl font-bold hover:bg-red-100 transition-all flex items-center justify-center gap-2"
+              >
+                {deleteMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
+                ลบรายการ
               </button>
             </div>
           </div>

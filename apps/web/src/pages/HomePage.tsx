@@ -1,10 +1,22 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import Layout from '../components/layout/Layout';
-import { Plus, Receipt, TrendingDown, TrendingUp, Loader2 } from 'lucide-react';
+import { Plus, Receipt, TrendingDown, TrendingUp, Loader2, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import TransactionForm from '../components/ui/TransactionForm';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+
+interface Transaction {
+  _id: string;
+  amount: number;
+  type: 'income' | 'expense';
+  description?: string;
+  date: string;
+  categoryId?: {
+    name: string;
+    icon: string;
+  };
+}
 
 const HomePage = () => {
   const navigate = useNavigate();
@@ -12,6 +24,28 @@ const HomePage = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [showManualForm, setShowManualForm] = useState(false);
+
+  const now = new Date();
+  const month = now.getMonth() + 1;
+  const year = now.getFullYear();
+
+  // Fetch Summary
+  const { data: summary, isLoading: isSummaryLoading } = useQuery({
+    queryKey: ['dashboard-summary', month, year],
+    queryFn: async () => {
+      const { data } = await api.get(`/dashboard/summary?month=${month}&year=${year}`);
+      return data;
+    },
+  });
+
+  // Fetch Recent Transactions
+  const { data: recentTransactions, isLoading: isRecentLoading } = useQuery({
+    queryKey: ['recent-transactions'],
+    queryFn: async () => {
+      const { data } = await api.get('/transactions?limit=5');
+      return data.data;
+    },
+  });
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -26,7 +60,7 @@ const HomePage = () => {
       await api.post('/transactions', formData);
       setShowManualForm(false);
       // Refresh summaries and transactions
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['recent-transactions'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     } catch (error: any) {
       console.error('Manual entry failed:', error);
@@ -36,10 +70,6 @@ const HomePage = () => {
 
   const handleViewAll = () => {
     navigate('/transactions');
-  };
-
-  const handleTransactionClick = (id: number) => {
-    alert(`ดูรายละเอียดรายการที่ #${id} (Mockup)`);
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -58,7 +88,7 @@ const HomePage = () => {
       });
       console.log('Upload success:', data);
       // After upload and analysis, we refresh
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['recent-transactions'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     } catch (error: any) {
       console.error('Upload failed:', error);
@@ -94,7 +124,11 @@ const HomePage = () => {
           <div className="flex justify-between items-start mb-4">
             <div>
               <p className="text-indigo-100 text-sm opacity-80">ยอดคงเหลือเดือนนี้</p>
-              <h1 className="text-3xl font-bold mt-1">฿14,250.00</h1>
+              {isSummaryLoading ? (
+                <div className="h-10 w-32 bg-white/10 animate-pulse rounded-lg mt-1" />
+              ) : (
+                <h1 className="text-3xl font-bold mt-1">฿{(summary?.netSaving || 0).toLocaleString()}</h1>
+              )}
             </div>
             <button 
               onClick={handleAddNewManual}
@@ -110,14 +144,14 @@ const HomePage = () => {
                 <TrendingUp size={12} />
                 <span>รายรับ</span>
               </div>
-              <p className="font-semibold">฿25,000</p>
+              <p className="font-semibold">฿{(summary?.totalIncome || 0).toLocaleString()}</p>
             </div>
             <div className="flex-1 bg-white/10 rounded-2xl p-3 backdrop-blur-sm">
               <div className="flex items-center gap-1 text-xs text-indigo-100 mb-1">
                 <TrendingDown size={12} />
                 <span>รายจ่าย</span>
               </div>
-              <p className="font-semibold">฿10,750</p>
+              <p className="font-semibold">฿{(summary?.totalExpense || 0).toLocaleString()}</p>
             </div>
           </div>
         </section>
@@ -168,22 +202,36 @@ const HomePage = () => {
           </div>
           
           <div className="flex flex-col gap-3">
-            {[1, 2, 3].map((i) => (
-              <div 
-                key={i} 
-                onClick={() => handleTransactionClick(i)}
-                className="flex items-center gap-4 bg-white p-4 rounded-3xl border border-gray-100 shadow-sm hover:translate-x-1 transition-transform cursor-pointer"
-              >
-                <div className="bg-orange-100 p-2.5 rounded-2xl text-orange-600">
-                  <Receipt size={20} />
-                </div>
-                <div className="flex-1">
-                  <p className="font-bold text-sm">อาหารเที่ยง - กะเพรา</p>
-                  <p className="text-xs text-gray-400">วันนี้, 12:30 น.</p>
-                </div>
-                <p className="font-bold text-red-500">- ฿85</p>
+            {isRecentLoading ? (
+              [1, 2, 3].map(i => (
+                <div key={i} className="h-20 bg-gray-50 animate-pulse rounded-3xl" />
+              ))
+            ) : recentTransactions?.length === 0 ? (
+              <div className="text-center py-10 text-gray-400 text-sm bg-gray-50 rounded-3xl">
+                ยังไม่มีรายการบันทึก
               </div>
-            ))}
+            ) : (
+              recentTransactions?.map((t: any) => (
+                <div 
+                  key={t._id} 
+                  onClick={() => navigate('/transactions')}
+                  className="flex items-center gap-4 bg-white p-4 rounded-3xl border border-gray-100 shadow-sm hover:translate-x-1 transition-transform cursor-pointer"
+                >
+                  <div className={`p-2.5 rounded-2xl ${t.type === 'income' ? 'bg-emerald-100 text-emerald-600' : 'bg-orange-100 text-orange-600'}`}>
+                    {t.type === 'income' ? <ArrowDownLeft size={20} /> : <Receipt size={20} />}
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-sm truncate">{t.description || 'ไม่มีคำอธิบาย'}</p>
+                    <p className="text-xs text-gray-400">
+                      {new Date(t.date).toLocaleDateString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                  <p className={`font-bold ${t.type === 'income' ? 'text-emerald-500' : 'text-red-500'}`}>
+                    {t.type === 'income' ? '+' : '-'} ฿{t.amount.toLocaleString()}
+                  </p>
+                </div>
+              ))
+            )}
           </div>
         </section>
       </div>

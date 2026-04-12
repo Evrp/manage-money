@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { CategoryType } from '@moneyflow/shared';
-import { X, Calendar, DollarSign, Tag } from 'lucide-react';
-
+import { X, Calendar, DollarSign, Tag, Image as ImageIcon, Loader2 } from 'lucide-react';
+import api from '../../services/api';
 import { useCategories } from '../../hooks/useCategories';
 
 interface TransactionFormProps {
@@ -18,11 +18,41 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ initialData, onClose,
     categoryId: initialData?.categoryId || '',
     note: initialData?.note || '',
     date: initialData?.date || new Date().toISOString().split('T')[0],
+    slipImageUrl: initialData?.slipImageUrl || '',
   });
+
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: categories, isLoading: isCatsLoading } = useCategories();
 
   const filteredCategories = categories?.filter(c => c.type === formData.type) || [];
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const uploadData = new FormData();
+    uploadData.append('file', file);
+
+    try {
+      // Use the reliable attachment endpoint for manual entries
+      const { data } = await api.post('/slips/attachment', uploadData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      setFormData({ 
+        ...formData, 
+        slipImageUrl: data.imageUrl
+      });
+    } catch (error) {
+      console.error('Upload failed:', error);
+      alert('อัพโหลดรูปภาพไม่สำเร็จ');
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const handleSubmit = () => {
     if (!formData.amount || !formData.categoryId) {
@@ -34,8 +64,8 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ initialData, onClose,
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-300">
-      <div className="bg-white w-full max-w-lg rounded-t-[2.5rem] sm:rounded-[2.5rem] p-8 shadow-2xl animate-in slide-in-from-bottom duration-500 max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-8">
+      <div className="bg-white w-full max-w-lg rounded-t-[2.5rem] sm:rounded-[2.5rem] p-8 shadow-2xl animate-in slide-in-from-bottom duration-500 max-h-[95vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-black text-gray-900">{title}</h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
             <X size={24} className="text-gray-400" />
@@ -43,6 +73,43 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ initialData, onClose,
         </div>
 
         <div className="space-y-6">
+          {/* Slip Preview & Upload */}
+          <div className="relative group">
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              onChange={handleFileChange} 
+              accept="image/*" 
+              className="hidden" 
+            />
+            {formData.slipImageUrl ? (
+              <div className="relative w-full h-48 rounded-3xl overflow-hidden mb-4 border-2 border-dashed border-gray-100">
+                <img src={formData.slipImageUrl} alt="Slip" className="w-full h-full object-cover" />
+                <button 
+                  onClick={() => setFormData({ ...formData, slipImageUrl: '' })}
+                  className="absolute top-2 right-2 bg-black/50 text-white p-1.5 rounded-full hover:bg-black/70 transition-all"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            ) : (
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                className="w-full h-24 border-2 border-dashed border-gray-200 rounded-3xl flex flex-col items-center justify-center gap-2 text-gray-400 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all"
+              >
+                {isUploading ? (
+                  <Loader2 size={24} className="animate-spin text-indigo-500" />
+                ) : (
+                  <>
+                    <ImageIcon size={24} />
+                    <span className="text-xs font-bold">แนบสลิปเพื่อบันทึกสีสัน</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+
           {/* Type Toggle */}
           <div className="flex bg-gray-100 p-1 rounded-2xl">
             <button
@@ -71,7 +138,6 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ initialData, onClose,
             <input
               type="number"
               placeholder="0.00"
-              autoFocus
               value={formData.amount}
               onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
               className="w-full bg-gray-50 border-none rounded-3xl py-6 pl-16 pr-6 text-3xl font-black focus:ring-4 focus:ring-indigo-500/10 placeholder:text-gray-300 transition-all text-indigo-600"

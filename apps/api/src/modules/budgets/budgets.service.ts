@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Budget } from '../../schemas/budget.schema';
-import { Category } from '../../schemas/category.schema';
-import { NotificationsService } from '../notifications/notifications.service';
+import { Injectable } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { Budget } from "../../schemas/budget.schema";
+import { Category } from "../../schemas/category.schema";
+import { NotificationsService } from "../notifications/notifications.service";
+import { DEFAULT_CATEGORIES } from "../../seeds/default-categories";
 
 @Injectable()
 export class BudgetsService {
@@ -14,17 +15,29 @@ export class BudgetsService {
   ) {}
 
   async findByMonth(userId: string, month: number, year: number) {
-    let categories = await this.categoryModel.find({ userId, isActive: true, type: 'expense' });
-    
+    let categories = await this.categoryModel.find({
+      userId,
+      isActive: true,
+      type: "expense",
+    });
+
     // If user has no categories, seed them with defaults
     if (categories.length === 0) {
-      const { DEFAULT_CATEGORIES } = await import('../../seeds/default-categories');
       await this.categoryModel.insertMany(
-        DEFAULT_CATEGORIES.map(cat => ({ ...cat, userId, isDefault: true, isActive: true }))
+        DEFAULT_CATEGORIES.map((cat) => ({
+          ...cat,
+          userId,
+          isDefault: true,
+          isActive: true,
+        })),
       );
-      categories = await this.categoryModel.find({ userId, isActive: true, type: 'expense' });
+      categories = await this.categoryModel.find({
+        userId,
+        isActive: true,
+        type: "expense",
+      });
     }
-    
+
     const budgets = await Promise.all(
       categories.map(async (cat) => {
         let budget = await this.budgetModel.findOne({
@@ -44,14 +57,20 @@ export class BudgetsService {
             spentAmount: 0,
           });
         }
-        return budget.populate('categoryId');
+        return budget.populate("categoryId");
       }),
     );
 
     return budgets;
   }
 
-  async updateLimit(userId: string, categoryId: string, month: number, year: number, limitAmount: number) {
+  async updateLimit(
+    userId: string,
+    categoryId: string,
+    month: number,
+    year: number,
+    limitAmount: number,
+  ) {
     const budget = await this.budgetModel.findOneAndUpdate(
       { userId, categoryId, month, year },
       { $set: { limitAmount } },
@@ -60,15 +79,26 @@ export class BudgetsService {
     return budget;
   }
 
-  async updateSpentAmount(userId: string, categoryId: string, month: number, year: number, amountDelta: number) {
+  async updateSpentAmount(
+    userId: string,
+    categoryId: string,
+    month: number,
+    year: number,
+    amountDelta: number,
+  ) {
     const budget = await this.budgetModel.findOneAndUpdate(
       { userId, categoryId, month, year },
       { $inc: { spentAmount: amountDelta } },
       { new: true, upsert: true },
     );
 
-    await this.notificationsService.checkBudgetAlerts(userId, categoryId, month, year);
-    
+    await this.notificationsService.checkBudgetAlerts(
+      userId,
+      categoryId,
+      month,
+      year,
+    );
+
     return budget;
   }
 }
