@@ -11,6 +11,7 @@ import { SlipsModule } from "./modules/slips/slips.module";
 import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { WebhookModule } from "./modules/webhook/webhook.module";
+import { FirebaseModule } from "./modules/firebase/firebase.module";
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { WebhookModule } from "./modules/webhook/webhook.module";
     MongooseModule.forRoot(
       process.env.MONGODB_URI || "mongodb://localhost/moneyflow",
     ),
+    FirebaseModule,
     AuthModule,
     CategoriesModule,
     TransactionsModule,
