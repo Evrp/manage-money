@@ -83,8 +83,8 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ initialData, onClose,
               className="hidden" 
             />
             {formData.slipImageUrl ? (
-              <div className="relative w-full h-48 rounded-3xl overflow-hidden mb-4 border-2 border-dashed border-gray-100">
-                <img src={formData.slipImageUrl} alt="Slip" className="w-full h-full object-cover" />
+              <div className="relative w-full rounded-3xl overflow-hidden mb-4 border-2 border-dashed border-gray-100 bg-gray-50">
+                <img src={formData.slipImageUrl} alt="Slip" className="w-full h-auto block" />
                 <button 
                   onClick={() => setFormData({ ...formData, slipImageUrl: '' })}
                   className="absolute top-2 right-2 bg-black/50 text-white p-1.5 rounded-full hover:bg-black/70 transition-all"
