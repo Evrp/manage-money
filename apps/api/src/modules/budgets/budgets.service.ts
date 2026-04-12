@@ -14,7 +14,16 @@ export class BudgetsService {
   ) {}
 
   async findByMonth(userId: string, month: number, year: number) {
-    const categories = await this.categoryModel.find({ userId, isActive: true, type: 'expense' });
+    let categories = await this.categoryModel.find({ userId, isActive: true, type: 'expense' });
+    
+    // If user has no categories, seed them with defaults
+    if (categories.length === 0) {
+      const { DEFAULT_CATEGORIES } = await import('../../seeds/default-categories');
+      await this.categoryModel.insertMany(
+        DEFAULT_CATEGORIES.map(cat => ({ ...cat, userId, isDefault: true, isActive: true }))
+      );
+      categories = await this.categoryModel.find({ userId, isActive: true, type: 'expense' });
+    }
     
     const budgets = await Promise.all(
       categories.map(async (cat) => {

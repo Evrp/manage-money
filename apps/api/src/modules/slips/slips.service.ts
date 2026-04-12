@@ -130,7 +130,7 @@ export class SlipsService {
     try {
       // Using Gemini 1.5 Flash via REST API
       const response = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
         {
           contents: [
             {
@@ -159,7 +159,10 @@ export class SlipsService {
       const textResponse = response.data.candidates[0].content.parts[0].text;
       return JSON.parse(textResponse);
     } catch (error) {
-      console.error("Gemini API Error:", (error as any).response?.data || (error as any).message);
+      console.error(
+        "Gemini API Error:",
+        (error as any).response?.data || (error as any).message,
+      );
       throw new Error("Gemini API integration failed");
     }
   }

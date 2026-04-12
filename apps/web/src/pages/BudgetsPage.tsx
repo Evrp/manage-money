@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import Layout from '../components/layout/Layout';
-import { Target, AlertCircle, Edit2, Calendar, X, Loader2, Save } from 'lucide-react';
+import { Target, AlertCircle, Edit2, Calendar, X, Loader2, Save, Plus } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
+import CreateCategoryModal from '../components/ui/CreateCategoryModal';
 
 interface Category {
   _id: string;
@@ -22,6 +23,7 @@ const BudgetsPage = () => {
   const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [newLimit, setNewLimit] = useState<string>('');
 
   const dateObj = new Date(selectedDate);
@@ -34,6 +36,17 @@ const BudgetsPage = () => {
     queryFn: async () => {
       const { data } = await api.get(`/budgets?month=${month}&year=${year}`);
       return data;
+    },
+  });
+
+  // Create category mutation
+  const createCategoryMutation = useMutation({
+    mutationFn: async (vars: any) => {
+      await api.post('/categories', { ...vars, type: 'expense' });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['budgets'] });
+      setShowCreateModal(false);
     },
   });
 
@@ -74,23 +87,43 @@ const BudgetsPage = () => {
     });
   };
 
+  const handleCreateCategory = (data: any) => {
+    createCategoryMutation.mutate(data);
+  };
+
   return (
     <Layout>
       <div className="flex flex-col gap-6">
-        <header className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">งบประมาณ</h1>
-          <div className="relative">
-            <input 
-              type="date" 
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
-            />
-            <button className="bg-white p-2.5 rounded-2xl border border-gray-100 shadow-sm text-gray-500 transition-colors pointer-events-none">
-              <Calendar size={20} />
+        <header className="flex justify-between items-center px-1">
+          <h1 className="text-2xl font-black">งบประมาณ</h1>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => setShowCreateModal(true)}
+              className="bg-indigo-600 text-white p-2.5 rounded-2xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-90"
+            >
+              <Plus size={20} />
             </button>
+            <div className="relative">
+              <input 
+                type="date" 
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+              />
+              <button className="bg-white p-2.5 rounded-2xl border border-gray-100 shadow-sm text-gray-400 pointer-events-none">
+                <Calendar size={20} />
+              </button>
+            </div>
           </div>
         </header>
+
+        {/* Create Category Modal */}
+        {showCreateModal && (
+          <CreateCategoryModal 
+            onClose={() => setShowCreateModal(false)}
+            onSubmit={handleCreateCategory}
+          />
+        )}
 
         {/* Global Progress Card */}
         <section className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-gray-50/50">

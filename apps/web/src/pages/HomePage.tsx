@@ -3,19 +3,35 @@ import Layout from '../components/layout/Layout';
 import { Plus, Receipt, TrendingDown, TrendingUp, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import TransactionForm from '../components/ui/TransactionForm';
+import { useQueryClient } from '@tanstack/react-query';
 
 const HomePage = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [showManualForm, setShowManualForm] = useState(false);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
 
-  const handleAddNew = () => {
-    // Navigate to transaction form or open modal
-    alert('ระบบบันทึกมือ (Manual Entry) กำลังตามมาเร็วๆ นี้ครับ!');
+  const handleAddNewManual = () => {
+    setShowManualForm(true);
+  };
+
+  const handleManualSubmit = async (formData: any) => {
+    try {
+      await api.post('/transactions', formData);
+      setShowManualForm(false);
+      // Refresh summaries and transactions
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+    } catch (error: any) {
+      console.error('Manual entry failed:', error);
+      alert('บันทึกไม่สำเร็จ: ' + (error.response?.data?.message || error.message));
+    }
   };
 
   const handleViewAll = () => {
@@ -41,8 +57,9 @@ const HomePage = () => {
         },
       });
       console.log('Upload success:', data);
-      alert('วิเคราะห์สลิปสำเร็จ! พบยอดเงิน: ฿' + data.extractedData.amount);
-      // TODO: Navigate to confirmation page
+      // After upload and analysis, we refresh
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     } catch (error: any) {
       console.error('Upload failed:', error);
       alert('อัพโหลดสลิปล้มเหลว: ' + (error.response?.data?.message || error.message));
@@ -55,6 +72,14 @@ const HomePage = () => {
   return (
     <Layout>
       <div className="flex flex-col gap-6">
+        {/* Manual Entry Modal */}
+        {showManualForm && (
+          <TransactionForm 
+            onClose={() => setShowManualForm(false)} 
+            onSubmit={handleManualSubmit}
+          />
+        )}
+
         {/* Hidden Input */}
         <input
           type="file"
@@ -72,7 +97,7 @@ const HomePage = () => {
               <h1 className="text-3xl font-bold mt-1">฿14,250.00</h1>
             </div>
             <button 
-              onClick={handleAddNew}
+              onClick={handleAddNewManual}
               className="bg-white/20 p-2 rounded-xl backdrop-blur-md hover:bg-white/30 transition-colors"
             >
               <Plus size={24} />
@@ -100,7 +125,7 @@ const HomePage = () => {
         {/* Quick Actions */}
         <section className="grid grid-cols-2 gap-4">
           <button 
-            onClick={handleAddNew}
+            onClick={handleAddNewManual}
             className="flex flex-col items-center gap-3 bg-white p-4 rounded-3xl border border-gray-100 shadow-sm hover:border-indigo-200 hover:bg-indigo-50/50 transition-all"
           >
             <div className="bg-indigo-100 p-3 rounded-2xl text-indigo-600">
