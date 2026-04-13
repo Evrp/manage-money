@@ -2,6 +2,7 @@ import { Injectable, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as admin from "firebase-admin";
 import * as path from "path";
+import * as fs from "fs";
 
 @Injectable()
 export class FirebaseService implements OnModuleInit {
@@ -19,21 +20,38 @@ export class FirebaseService implements OnModuleInit {
 
     if (!admin.apps.length) {
       if (serviceAccount) {
-        const config = JSON.parse(serviceAccount);
-        admin.initializeApp({
-          credential: admin.credential.cert(config),
-          storageBucket: bucketName,
-        });
+        try {
+          const config = JSON.parse(serviceAccount);
+          admin.initializeApp({
+            credential: admin.credential.cert(config),
+            storageBucket: bucketName,
+          });
+          console.log("Firebase Admin initialized from ENV.");
+        } catch (error) {
+          console.error("Failed to initialize Firebase from ENV:", error);
+        }
+      } else if (process.env.NODE_ENV === "development") {
+        // ONLY fallback in development
+        try {
+          const serviceAccountPath = path.resolve(
+            process.cwd(),
+            "src/modules/firebase/manager-money-f9507-firebase-adminsdk-fbsvc-4eaf51239a.json",
+          );
+          
+          if (fs.existsSync(serviceAccountPath)) {
+            admin.initializeApp({
+              credential: admin.credential.cert(serviceAccountPath),
+              storageBucket: bucketName,
+            });
+            console.log("Firebase Admin initialized from local file.");
+          } else {
+            console.warn("Firebase local credentials file not found.");
+          }
+        } catch (error) {
+          console.warn("Firebase fallback initialization failed:", error.message);
+        }
       } else {
-        // Fallback for local development if file exists
-        const serviceAccountPath = path.resolve(
-          process.cwd(),
-          "src/modules/firebase/manager-money-f9507-firebase-adminsdk-fbsvc-4eaf51239a.json",
-        );
-        admin.initializeApp({
-          credential: admin.credential.cert(serviceAccountPath),
-          storageBucket: bucketName,
-        });
+        console.warn("Firebase credentials not provided. Firebase features disabled.");
       }
     }
 
