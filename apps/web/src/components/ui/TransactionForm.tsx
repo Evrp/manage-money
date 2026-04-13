@@ -298,9 +298,9 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowDatePicker(true)}
-                    className="w-full bg-gray-50 border border-transparent p-4 rounded-2xl flex items-center justify-between group hover:bg-white hover:border-indigo-100 transition-all font-bold text-gray-700"
+                    className="w-full bg-gray-50 border border-transparent p-4 rounded-2xl flex items-center justify-between group hover:bg-white hover:border-indigo-100 transition-all font-bold text-gray-700 h-[56px]"
                   >
-                    <span>
+                    <span className="text-sm truncate">
                       {new Date(formData.date).toLocaleDateString("th-TH", {
                         day: "numeric",
                         month: "short",
@@ -309,7 +309,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
                     </span>
                     <CalendarIcon
                       size={18}
-                      className="text-gray-300 group-hover:text-indigo-400"
+                      className="text-gray-300 group-hover:text-indigo-400 shrink-0 ml-1"
                     />
                   </button>
 
@@ -337,20 +337,25 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
                   )}
                 </div>
               </div>
-              <div className="relative">
-                <Tag
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-                  size={18}
-                />
-                <input
-                  type="text"
-                  placeholder="โน้ต..."
-                  value={formData.note}
-                  onChange={(e) =>
-                    setFormData({ ...formData, note: e.target.value })
-                  }
-                  className="w-full bg-gray-50 border-none rounded-2xl py-3 pl-12 pr-4 text-sm font-bold focus:ring-0"
-                />
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">
+                  โน้ต
+                </label>
+                <div className="relative group">
+                  <Tag
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-indigo-400 transition-colors"
+                    size={18}
+                  />
+                  <input
+                    type="text"
+                    placeholder="โน้ต..."
+                    value={formData.note}
+                    onChange={(e) =>
+                      setFormData({ ...formData, note: e.target.value })
+                    }
+                    className="w-full bg-gray-50 border-none rounded-2xl py-4 pl-12 pr-4 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 placeholder:text-gray-300 transition-all text-gray-700 h-[56px]"
+                  />
+                </div>
               </div>
             </div>
 

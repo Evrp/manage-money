@@ -153,7 +153,7 @@ export class SlipsService {
     try {
       // Using Gemini 1.5 Flash via REST API
       const response = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
         {
           contents: [
             {
