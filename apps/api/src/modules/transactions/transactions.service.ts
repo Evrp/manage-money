@@ -5,12 +5,14 @@ import { Transaction } from '../../schemas/transaction.schema';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { QueryTransactionDto } from './dto/query-transaction.dto';
 import { BudgetsService } from '../budgets/budgets.service';
+import { FirebaseService } from '../firebase/firebase.service';
 
 @Injectable()
 export class TransactionsService {
   constructor(
     @InjectModel(Transaction.name) private transactionModel: Model<Transaction>,
     private readonly budgetsService: BudgetsService,
+    private readonly firebaseService: FirebaseService,
   ) {}
 
   async findAll(userId: string, query: QueryTransactionDto) {
@@ -68,11 +70,20 @@ export class TransactionsService {
   }
 
   async remove(userId: string, id: string) {
-    const transaction = await this.transactionModel.findOneAndDelete({ _id: id, userId });
+    const transaction = await this.transactionModel.findOne({ _id: id, userId });
     if (!transaction) {
       throw new NotFoundException('Transaction not found');
     }
 
+    // 1. Delete image from storage if it exists
+    if (transaction.slipImageUrl) {
+      await this.firebaseService.deleteFileFromUrl(transaction.slipImageUrl);
+    }
+
+    // 2. Delete from database
+    await this.transactionModel.deleteOne({ _id: id });
+
+    // 3. Update budget
     if (transaction.type === 'expense') {
       await this.budgetsService.updateSpentAmount(
         userId,

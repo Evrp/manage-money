@@ -51,4 +51,46 @@ export class FirebaseService implements OnModuleInit {
 
     return url;
   }
+
+  /**
+   * Deletes a file from storage given its URL
+   * @param url The public or signed URL of the file
+   */
+  async deleteFileFromUrl(url: string): Promise<void> {
+    if (!url) return;
+
+    try {
+      const bucket = this.getBucket();
+      let filePath: string | null = null;
+
+      // Logic to extract path from Firebase/GCS URLs
+      if (url.includes('storage.googleapis.com')) {
+        // Handle format: https://storage.googleapis.com/bucket/path/to/file or signed variants
+        const bucketName = bucket.name;
+        const parts = url.split(`${bucketName}/`);
+        if (parts.length > 1) {
+          filePath = decodeURIComponent(parts[1].split('?')[0]);
+        }
+      } else if (url.includes('firebasestorage.googleapis.com')) {
+        // Handle format: https://firebasestorage.googleapis.com/v0/b/bucket/o/path%2Fto%2Ffile?alt=media...
+        const parts = url.split('/o/');
+        if (parts.length > 1) {
+          filePath = decodeURIComponent(parts[1].split('?')[0]);
+        }
+      }
+
+      if (filePath) {
+        const file = bucket.file(filePath);
+        const [exists] = await file.exists();
+        if (exists) {
+          await file.delete();
+          console.log(`Successfully deleted file from storage: ${filePath}`);
+        }
+      }
+    } catch (error) {
+      // We don't want to fail the whole delete operation if storage delete fails,
+      // but we should log it.
+      console.error('Failed to delete file from Firebase Storage:', error);
+    }
+  }
 }
