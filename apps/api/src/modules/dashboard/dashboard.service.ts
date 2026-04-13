@@ -10,8 +10,15 @@ export class DashboardService {
   ) {}
 
   async getSummary(userId: string, month: number, year: number) {
+    const userObjectId = new Types.ObjectId(userId);
     const transactions = await this.transactionModel.aggregate([
-      { $match: { userId: new Types.ObjectId(userId), month, year } },
+      {
+        $match: {
+          userId: { $in: [userId, userObjectId] },
+          month: Number(month),
+          year: Number(year),
+        },
+      },
       {
         $group: {
           _id: '$type',
@@ -27,13 +34,33 @@ export class DashboardService {
 
     // Top categories
     const topCategories = await this.transactionModel.aggregate([
-      { $match: { userId: new Types.ObjectId(userId), month, year, type: 'expense' } },
+      {
+        $match: {
+          userId: { $in: [userId, userObjectId] },
+          month: Number(month),
+          year: Number(year),
+          type: 'expense',
+        },
+      },
+      {
+        $addFields: {
+          categoryIdObj: {
+            $cond: {
+              if: { $eq: [{ $type: '$categoryId' }, 'string'] },
+              then: { $toObjectId: '$categoryId' },
+              else: '$categoryId',
+            },
+          },
+        },
+      },
       {
         $group: {
-          _id: '$categoryId',
+          _id: '$categoryIdObj',
           total: { $sum: '$amount' },
         },
       },
+      { $sort: { total: -1 } },
+      { $limit: 5 },
       {
         $lookup: {
           from: 'categories',
@@ -43,14 +70,12 @@ export class DashboardService {
         },
       },
       { $unwind: '$category' },
-      { $sort: { total: -1 } },
-      { $limit: 5 },
       {
         $project: {
           name: '$category.name',
+          amount: '$total',
           icon: '$category.icon',
           color: '$category.color',
-          amount: '$total',
         },
       },
     ]);
@@ -65,8 +90,14 @@ export class DashboardService {
   }
 
   async getMonthlyChart(userId: string, year: number) {
+    const userObjectId = new Types.ObjectId(userId);
     const data = await this.transactionModel.aggregate([
-      { $match: { userId: new Types.ObjectId(userId), year } },
+      {
+        $match: {
+          userId: { $in: [userId, userObjectId] },
+          year: Number(year),
+        },
+      },
       {
         $group: {
           _id: { month: '$month', type: '$type' },
@@ -94,12 +125,31 @@ export class DashboardService {
   }
 
   async getCategoryBreakdown(userId: string, month: number, year: number) {
+    const userObjectId = new Types.ObjectId(userId);
     return this.transactionModel.aggregate([
-      { $match: { userId: new Types.ObjectId(userId), month, year, type: 'expense' } },
+      {
+        $match: {
+          userId: { $in: [userId, userObjectId] },
+          month: Number(month),
+          year: Number(year),
+          type: 'expense',
+        },
+      },
+      {
+        $addFields: {
+          categoryIdObj: {
+            $cond: {
+              if: { $eq: [{ $type: '$categoryId' }, 'string'] },
+              then: { $toObjectId: '$categoryId' },
+              else: '$categoryId',
+            },
+          },
+        },
+      },
       {
         $group: {
-          _id: '$categoryId',
-          value: { $sum: '$amount' },
+          _id: '$categoryIdObj',
+          total: { $sum: '$amount' },
         },
       },
       {
@@ -114,8 +164,9 @@ export class DashboardService {
       {
         $project: {
           name: '$category.name',
-          value: 1,
+          value: '$total',
           color: '$category.color',
+          icon: '$category.icon',
         },
       },
     ]);

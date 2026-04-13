@@ -65,8 +65,8 @@ export class BudgetsService {
         const transactionsResult = await this.transactionModel.aggregate([
           {
             $match: {
-              userId: userId.toString(), // Match as string first
-              categoryId: cat._id.toString(), // Match as string (common when sent from frontend)
+              userId: { $in: [userId.toString(), new Types.ObjectId(userId)] },
+              categoryId: { $in: [cat._id.toString(), cat._id] },
               type: "expense",
               month: Number(month),
               year: Number(year),
@@ -75,25 +75,7 @@ export class BudgetsService {
           { $group: { _id: null, total: { $sum: "$amount" } } },
         ]);
 
-        // Fallback: If not found, try matching with ObjectId (for older records)
-        let actualSpent =
-          transactionsResult.length > 0 ? transactionsResult[0].total : 0;
-
-        if (actualSpent === 0) {
-          const altResult = await this.transactionModel.aggregate([
-            {
-              $match: {
-                userId: new Types.ObjectId(userId),
-                categoryId: cat._id,
-                type: "expense",
-                month: Number(month),
-                year: Number(year),
-              },
-            },
-            { $group: { _id: null, total: { $sum: "$amount" } } },
-          ]);
-          actualSpent = altResult.length > 0 ? altResult[0].total : 0;
-        }
+        const actualSpent = transactionsResult.length > 0 ? transactionsResult[0].total : 0;
 
         // Update DB if it differs (optional but good for consistency)
         if (budget.spentAmount !== actualSpent) {

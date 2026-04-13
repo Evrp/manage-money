@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
+import { Model, Types } from "mongoose";
 import { Transaction } from "../../schemas/transaction.schema";
 import { CreateTransactionDto } from "./dto/create-transaction.dto";
 import { QueryTransactionDto } from "./dto/query-transaction.dto";
@@ -45,7 +45,8 @@ export class TransactionsService {
     const date = new Date(createTransactionDto.date);
     const transaction = new this.transactionModel({
       ...createTransactionDto,
-      userId,
+      userId: new Types.ObjectId(userId),
+      categoryId: new Types.ObjectId(createTransactionDto.categoryId),
       date,
       month: date.getMonth() + 1,
       year: date.getFullYear(),
@@ -137,8 +138,11 @@ export class TransactionsService {
     }
 
     // 2. Update transaction
+    if (updateData.categoryId) {
+      updateData.categoryId = new Types.ObjectId(updateData.categoryId);
+    }
     const newTransaction = await this.transactionModel.findOneAndUpdate(
-      { _id: id, userId },
+      { _id: id, userId: new Types.ObjectId(userId) },
       { $set: updateData },
       { new: true },
     );
@@ -162,8 +166,15 @@ export class TransactionsService {
   }
 
   async getSummary(userId: string, month: number, year: number) {
+    const userObjectId = new Types.ObjectId(userId);
     const summary = await this.transactionModel.aggregate([
-      { $match: { userId, month, year } },
+      {
+        $match: {
+          userId: { $in: [userId, userObjectId] },
+          month: Number(month),
+          year: Number(year),
+        },
+      },
       {
         $group: {
           _id: "$type",
