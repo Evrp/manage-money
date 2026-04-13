@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { CategoryType } from "@moneyflow/shared";
+import { CategoryType } from "../../../packages/shared/src/index";
 import {
   Calendar as CalendarIcon,
   Tag,
