@@ -82,6 +82,9 @@ const HomePage = () => {
     const formData = new FormData();
     formData.append("file", file);
 
+    // Clear input immediately to prevent double-selection issues
+    if (fileInputRef.current) fileInputRef.current.value = "";
+
     try {
       const { data } = await api.post("/slips/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -92,13 +95,10 @@ const HomePage = () => {
       setShowManualForm(true);
     } catch (error: any) {
       console.error("Upload failed:", error);
-      alert(
-        "อัพโหลดสลิปล้มเหลว: " +
-          (error.response?.data?.message || error.message),
-      );
+      const msg = error.response?.data?.message || error.message;
+      alert("อัพโหลดสลิปล้มเหลว: " + msg);
     } finally {
       setIsUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -282,24 +282,26 @@ const HomePage = () => {
                   className="flex items-center gap-4 bg-white p-4 rounded-3xl border border-gray-100 shadow-sm hover:translate-x-1 transition-transform cursor-pointer"
                 >
                   <div
-                    className={`p-2.5 rounded-2xl ${t.type === "income" ? "bg-emerald-100 text-emerald-600" : "bg-orange-100 text-orange-600"}`}
+                    className={`h-11 w-11 flex items-center justify-center rounded-2xl text-xl ${t.type === "income" ? "bg-emerald-50" : "bg-gray-50"}`}
                   >
-                    {t.type === "income" ? (
-                      <ArrowDownLeft size={20} />
-                    ) : (
-                      <Receipt size={20} />
-                    )}
+                    {t.categoryId?.icon || (t.type === "income" ? <ArrowDownLeft size={20} className="text-emerald-500" /> : <Receipt size={20} className="text-gray-400" />)}
                   </div>
                   <div className="flex-1">
                     <p className="font-bold text-sm truncate">
-                      {t.description || "ไม่มีคำอธิบาย"}
+                      {t.note || t.description || "ไม่มีคำอธิบาย"}
                     </p>
-                    <p className="text-xs text-gray-400">
-                      {new Date(t.date).toLocaleDateString("th-TH", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
+                    <div className="flex items-center gap-2">
+                       <p className="text-[10px] text-gray-400 font-medium">
+                        {new Date(t.date).toLocaleDateString("th-TH", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                      <span className="h-1 w-1 rounded-full bg-gray-200" />
+                      <p className="text-[10px] text-indigo-500 font-bold">
+                        {t.categoryId?.name || "อื่นๆ"}
+                      </p>
+                    </div>
                   </div>
                   <p
                     className={`font-bold ${t.type === "income" ? "text-emerald-500" : "text-red-500"}`}

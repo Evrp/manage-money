@@ -16,9 +16,9 @@ export class BudgetsService {
 
   async findByMonth(userId: string, month: number, year: number) {
     let categories = await this.categoryModel.find({
-      userId,
+      $or: [{ userId }, { userId: null }],
       isActive: true,
-      type: "expense",
+      type: 'expense',
     });
 
     // If user has no categories, seed them with defaults

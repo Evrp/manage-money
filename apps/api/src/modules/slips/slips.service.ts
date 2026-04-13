@@ -18,29 +18,39 @@ export class SlipsService {
   ) {}
 
   async processUpload(userId: string, file: Express.Multer.File) {
-    const { imageUrl, processedBuffer } = await this.uploadToStorage(
-      userId,
-      file,
-    );
-
-    // Create record
-    const slipUpload = await this.slipUploadModel.create({
-      userId,
-      imageUrl,
-      status: SlipUploadStatus.PROCESSING,
-    });
+    const session = await this.slipUploadModel.db.startSession();
+    session.startTransaction();
 
     try {
-      // 2. OCR with Google Gemini API
-      const extractedData = await this.extractWithGemini(
-        processedBuffer.toString("base64"),
-        "image/webp", // We processed it to webp
+      // 1. Upload to storage (Done outside DB transaction usually, but we keep its metadata inside)
+      const { imageUrl, processedBuffer } = await this.uploadToStorage(
+        userId,
+        file,
       );
 
+      // 2. Create record with session
+      const [slipUpload] = await this.slipUploadModel.create(
+        [{
+          userId,
+          imageUrl,
+          status: SlipUploadStatus.PROCESSING,
+        }],
+        { session },
+      );
+
+      // 3. OCR with Google Gemini API
+      const extractedData = await this.extractWithGemini(
+        processedBuffer.toString("base64"),
+        "image/webp",
+      );
+
+      // 4. Update and Commit
       slipUpload.extractedData = extractedData;
       slipUpload.status = SlipUploadStatus.SUCCESS;
       slipUpload.processedAt = new Date();
-      await slipUpload.save();
+      await slipUpload.save({ session });
+
+      await session.commitTransaction();
 
       return {
         id: slipUpload._id,
@@ -48,11 +58,13 @@ export class SlipsService {
         extractedData,
       };
     } catch (error: any) {
-      slipUpload.status = SlipUploadStatus.FAILED;
-      slipUpload.errorMessage = error.message;
-      await slipUpload.save();
+      await session.abortTransaction();
       console.error("OCR Processing Error:", error);
-      throw new BadRequestException("Failed to process slip OCR with Gemini");
+      throw new BadRequestException(
+        error.message || "Failed to process slip OCR with Gemini",
+      );
+    } finally {
+      session.endSession();
     }
   }
 
@@ -139,7 +151,7 @@ export class SlipsService {
     try {
       // Using Gemini 1.5 Flash via REST API
       const response = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
         {
           contents: [
             {
@@ -167,12 +179,10 @@ export class SlipsService {
 
       const textResponse = response.data.candidates[0].content.parts[0].text;
       return JSON.parse(textResponse);
-    } catch (error) {
-      console.error(
-        "Gemini API Error:",
-        (error as any).response?.data || (error as any).message,
-      );
-      throw new Error("Gemini API integration failed");
+    } catch (error: any) {
+      const errorDetail = error.response?.data?.error?.message || error.message;
+      console.error("Gemini OCR Error details:", errorDetail);
+      throw new Error(`Gemini API Error: ${errorDetail}`);
     }
   }
 }

@@ -28,6 +28,7 @@ export class TransactionsService {
     const [data, total] = await Promise.all([
       this.transactionModel
         .find(filter)
+        .populate('categoryId') // Populate the full category object
         .sort({ date: -1, createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -49,18 +50,21 @@ export class TransactionsService {
     });
     
     const saved = await transaction.save();
+    
+    // Populate before returning to frontend
+    const populated = await this.transactionModel.findById(saved._id).populate('categoryId').exec();
 
-    if (saved.type === 'expense') {
+    if (saved.type === 'expense' && populated) {
       await this.budgetsService.updateSpentAmount(
         userId,
-        saved.categoryId,
+        saved.categoryId.toString(), // Ensure string ID
         saved.month,
         saved.year,
         saved.amount,
       );
     }
     
-    return saved;
+    return populated || saved;
   }
 
   async remove(userId: string, id: string) {

@@ -1,8 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { CategoryType } from '@moneyflow/shared';
-import { X, Calendar, DollarSign, Tag, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { X, Calendar, Tag, Image as ImageIcon, Loader2, Plus } from 'lucide-react';
 import api from '../../services/api';
 import { useCategories } from '../../hooks/useCategories';
+import CreateCategoryModal from './CreateCategoryModal';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface TransactionFormProps {
   initialData?: any;
@@ -22,7 +24,9 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ initialData, onClose,
   });
 
   const [isUploading, setIsUploading] = useState(false);
+  const [showCreateCategory, setShowCreateCategory] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
 
   const { data: categories, isLoading: isCatsLoading } = useCategories();
 
@@ -65,8 +69,37 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ initialData, onClose,
     });
   };
 
+  // Create Category Mutation
+  const createCategoryMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const { data: newCat } = await api.post('/categories', { ...data, type: formData.type });
+      return newCat;
+    },
+    onSuccess: (newCat) => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      setFormData({ ...formData, categoryId: newCat._id });
+      setShowCreateCategory(false);
+    }
+  });
+
+  const handleCreateCategory = (data: any) => {
+    createCategoryMutation.mutate(data);
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-300">
+    <>
+      {showCreateCategory && (
+        <CreateCategoryModal 
+          onClose={() => setShowCreateCategory(false)}
+          onSubmit={handleCreateCategory}
+        />
+      )}
+    <div 
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-300"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className="bg-white w-full max-w-lg rounded-t-[2.5rem] sm:rounded-[2.5rem] p-8 shadow-2xl animate-in slide-in-from-bottom duration-500 max-h-[95vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-black text-gray-900">{title}</h2>
@@ -170,6 +203,15 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ initialData, onClose,
                     </span>
                   </button>
                 ))}
+                
+                {/* Add New Category Button */}
+                <button
+                  onClick={() => setShowCreateCategory(true)}
+                  className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl border-2 border-dashed border-gray-200 text-gray-400 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50/50 transition-all"
+                >
+                  <Plus size={20} />
+                  <span className="text-[10px] font-bold">เพิ่มใหม่</span>
+                </button>
               </div>
             )}
           </div>
@@ -206,6 +248,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ initialData, onClose,
         </div>
       </div>
     </div>
+    </>
   );
 };
 

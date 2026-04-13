@@ -8,7 +8,9 @@
     {
       "src": "apps/web/package.json",
       "use": "@vercel/static-build",
-      "config": { "distDir": "dist" }
+      "config": {
+        "outputDirectory": "dist"
+      }
     }
   ],
   "rewrites": [
@@ -19,6 +21,16 @@
     {
       "source": "/(.*)",
       "destination": "/apps/web/$1"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/daily-budget-check",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/monthly-summary",
+      "schedule": "0 1 1 * *"
     }
   ]
 }
