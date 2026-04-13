@@ -1,11 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Transaction } from '../../schemas/transaction.schema';
-import { CreateTransactionDto } from './dto/create-transaction.dto';
-import { QueryTransactionDto } from './dto/query-transaction.dto';
-import { BudgetsService } from '../budgets/budgets.service';
-import { FirebaseService } from '../firebase/firebase.service';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { Transaction } from "../../schemas/transaction.schema";
+import { CreateTransactionDto } from "./dto/create-transaction.dto";
+import { QueryTransactionDto } from "./dto/query-transaction.dto";
+import { BudgetsService } from "../budgets/budgets.service";
+import { FirebaseService } from "../firebase/firebase.service";
 
 @Injectable()
 export class TransactionsService {
@@ -30,7 +30,7 @@ export class TransactionsService {
     const [data, total] = await Promise.all([
       this.transactionModel
         .find(filter)
-        .populate('categoryId') // Populate the full category object
+        .populate("categoryId") // Populate the full category object
         .sort({ date: -1, createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -50,29 +50,33 @@ export class TransactionsService {
       month: date.getMonth() + 1,
       year: date.getFullYear(),
     });
-    
-    const saved = await transaction.save();
-    
-    // Populate directly on the document for immediate consistency
-    const populated = await saved.populate('categoryId');
 
-    if (saved.type === 'expense') {
+    const saved = await transaction.save();
+    const categoryId = saved.categoryId.toString();
+
+    // Populate directly on the document for immediate consistency
+    const populated = await saved.populate("categoryId");
+
+    if (saved.type === "expense") {
       await this.budgetsService.updateSpentAmount(
         userId,
-        saved.categoryId.toString(),
+        categoryId,
         saved.month,
         saved.year,
         saved.amount,
       );
     }
-    
+
     return populated;
   }
 
   async remove(userId: string, id: string) {
-    const transaction = await this.transactionModel.findOne({ _id: id, userId });
+    const transaction = await this.transactionModel.findOne({
+      _id: id,
+      userId,
+    });
     if (!transaction) {
-      throw new NotFoundException('Transaction not found');
+      throw new NotFoundException("Transaction not found");
     }
 
     // 1. Delete image from storage if it exists
@@ -84,10 +88,14 @@ export class TransactionsService {
     await this.transactionModel.deleteOne({ _id: id });
 
     // 3. Update budget
-    if (transaction.type === 'expense') {
+    if (transaction.type === "expense" && transaction.categoryId) {
+      const catId =
+        typeof transaction.categoryId === "object"
+          ? (transaction.categoryId as any)._id
+          : transaction.categoryId;
       await this.budgetsService.updateSpentAmount(
         userId,
-        transaction.categoryId,
+        catId.toString(),
         transaction.month,
         transaction.year,
         -transaction.amount,
@@ -97,13 +105,69 @@ export class TransactionsService {
     return { success: true };
   }
 
+  async update(userId: string, id: string, updateData: any) {
+    const oldTransaction = await this.transactionModel.findOne({
+      _id: id,
+      userId,
+    });
+    if (!oldTransaction) {
+      throw new NotFoundException("Transaction not found");
+    }
+
+    // Prepare date fields if date changed
+    if (updateData.date) {
+      const date = new Date(updateData.date);
+      updateData.month = date.getMonth() + 1;
+      updateData.year = date.getFullYear();
+    }
+
+    // 1. Revert budget for old transaction if it was an expense
+    if (oldTransaction.type === "expense" && oldTransaction.categoryId) {
+      const oldCatId =
+        typeof oldTransaction.categoryId === "object"
+          ? (oldTransaction.categoryId as any)._id
+          : oldTransaction.categoryId;
+      await this.budgetsService.updateSpentAmount(
+        userId,
+        oldCatId.toString(),
+        oldTransaction.month,
+        oldTransaction.year,
+        -oldTransaction.amount,
+      );
+    }
+
+    // 2. Update transaction
+    const newTransaction = await this.transactionModel.findOneAndUpdate(
+      { _id: id, userId },
+      { $set: updateData },
+      { new: true },
+    );
+
+    // 3. Apply budget for new transaction if it is an expense
+    if (newTransaction && newTransaction.type === "expense" && newTransaction.categoryId) {
+      const newCatId =
+        typeof newTransaction.categoryId === "object"
+          ? (newTransaction.categoryId as any)._id
+          : newTransaction.categoryId;
+      await this.budgetsService.updateSpentAmount(
+        userId,
+        newCatId.toString(),
+        newTransaction.month,
+        newTransaction.year,
+        newTransaction.amount,
+      );
+    }
+
+    return newTransaction;
+  }
+
   async getSummary(userId: string, month: number, year: number) {
     const summary = await this.transactionModel.aggregate([
       { $match: { userId, month, year } },
       {
         $group: {
-          _id: '$type',
-          total: { $sum: '$amount' },
+          _id: "$type",
+          total: { $sum: "$amount" },
         },
       },
     ]);
@@ -115,8 +179,8 @@ export class TransactionsService {
     };
 
     summary.forEach((s) => {
-      if (s._id === 'income') result.income = s.total;
-      if (s._id === 'expense') result.expense = s.total;
+      if (s._id === "income") result.income = s.total;
+      if (s._id === "expense") result.expense = s.total;
     });
 
     result.net = result.income - result.expense;

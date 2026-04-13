@@ -15,6 +15,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../services/api";
 import { useCategories } from "../hooks/useCategories";
 import Calendar from "../components/ui/Calendar";
+import TransactionForm from "../components/ui/TransactionForm";
 
 interface Transaction {
   _id: string;
@@ -48,6 +49,7 @@ const TransactionsPage = () => {
   );
   const [selectedTransaction, setSelectedTransaction] =
     useState<Transaction | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
 
   // Fetch transactions
   const dateObj = new Date(selectedDate);
@@ -133,15 +135,22 @@ const TransactionsPage = () => {
 
   // Delete transaction mutation
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await api.delete(`/transactions/${id}`);
-    },
+    mutationFn: (id: string) => api.delete(`/transactions/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["recent-transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["budgets"] });
+      queryClient.invalidateQueries({ queryKey: ["budget-summary"] });
       setSelectedTransaction(null);
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) =>
+      api.patch(`/transactions/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["budget-summary"] });
+      setSelectedTransaction(null);
+      setIsEditing(false);
     },
   });
 
@@ -381,136 +390,167 @@ const TransactionsPage = () => {
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={(e) => {
-            if (e.target === e.currentTarget) setSelectedTransaction(null);
+            if (e.target === e.currentTarget) {
+              setSelectedTransaction(null);
+              setIsEditing(false);
+            }
           }}
         >
-          <div className="bg-white w-full max-w-sm max-h-[85vh] overflow-y-auto rounded-[2rem] shadow-2xl animate-in zoom-in-95 duration-200 scrollbar-hide">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <span className="text-xs font-bold uppercase text-gray-400">
-                  รายละเอียดรายการ
-                </span>
-                <button
-                  onClick={() => setSelectedTransaction(null)}
-                  className="p-1 hover:bg-gray-100 rounded-full transition-colors"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-
-              {selectedTransaction.slipImageUrl &&
-                selectedTransaction.slipImageUrl.length > 0 && (
-                  <div className="mb-6 rounded-3xl overflow-hidden border border-gray-100 bg-gray-50 shadow-inner">
-                    <img
-                      src={selectedTransaction.slipImageUrl}
-                      alt="Receipt"
-                      className="w-full h-auto object-contain"
-                    />
-                  </div>
-                )}
-
-              <div className="flex flex-col items-center text-center mb-8">
-                <div
-                  className={`p-4 rounded-[2rem] mb-4 ${selectedTransaction.type === "income" ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-600"}`}
-                >
-                  {selectedTransaction.type === "income" ? (
-                    <ArrowDownLeft size={32} />
-                  ) : (
-                    <ArrowUpRight size={32} />
-                  )}
-                </div>
-                <h2
-                  className={`text-3xl font-black ${selectedTransaction.type === "income" ? "text-emerald-500" : "text-red-500"}`}
-                >
-                  {selectedTransaction.type === "income" ? "+" : "-"} ฿
-                  {selectedTransaction.amount.toLocaleString()}
-                </h2>
-                <p className="font-bold text-lg mt-1">
-                  {selectedTransaction.description ||
-                    selectedTransaction.note ||
-                    "ไม่มีคำอธิบาย"}
-                </p>
-              </div>
-
-              <div className="space-y-4 bg-gray-50 p-6 rounded-3xl">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-400 font-medium">วันที่</span>
-                  <span className="font-bold">
-                    {new Date(selectedTransaction.date).toLocaleDateString(
-                      "th-TH",
-                      {
-                        day: "numeric",
-                        month: "long",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      },
-                    )}
+          {isEditing ? (
+            <div
+              className="w-full max-w-sm"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <TransactionForm
+                initialData={{
+                  ...selectedTransaction,
+                  categoryId:
+                    typeof selectedTransaction.categoryId === "object"
+                      ? selectedTransaction.categoryId._id
+                      : selectedTransaction.categoryId,
+                  date: selectedTransaction.date.split("T")[0],
+                }}
+                title="แก้ไขรายการ"
+                onClose={() => setIsEditing(false)}
+                onSubmit={(data) => {
+                  updateMutation.mutate({
+                    id: (selectedTransaction as any)._id,
+                    data,
+                  });
+                }}
+              />
+            </div>
+          ) : (
+            <div className="bg-white w-full max-w-sm max-h-[85vh] overflow-y-auto rounded-[2rem] shadow-2xl animate-in zoom-in-95 duration-200 scrollbar-hide">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <span className="text-xs font-bold uppercase text-gray-400">
+                    รายละเอียดรายการ
                   </span>
+                  <button
+                    onClick={() => setSelectedTransaction(null)}
+                    className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="font-medium text-gray-400">หมวดหมู่</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-base">
-                      {typeof selectedTransaction.categoryId === "object"
-                        ? selectedTransaction.categoryId?.icon
-                        : "📦"}
-                    </span>
-                    <span className="font-bold underline decoration-indigo-200 decoration-2 underline-offset-4">
-                      {typeof selectedTransaction.categoryId === "object"
-                        ? selectedTransaction.categoryId?.name
-                        : selectedTransaction.categoryId ||
-                          selectedTransaction.categoryName ||
-                          "อื่นๆ"}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-400 font-medium">ประเภท</span>
-                  <span className="font-bold uppercase text-[10px] bg-white px-2 py-0.5 rounded border border-gray-100">
-                    {selectedTransaction.type === "income"
-                      ? "รายรับ"
-                      : "รายจ่าย"}
-                  </span>
-                </div>
-                {selectedTransaction.note &&
-                  selectedTransaction.note !==
-                    selectedTransaction.description && (
-                    <div className="flex flex-col gap-1 pt-3 border-t border-gray-200 text-sm">
-                      <span className="text-gray-400 font-medium">
-                        หมายเหตุ
-                      </span>
-                      <span className="font-bold">
-                        {selectedTransaction.note}
-                      </span>
+
+                {selectedTransaction.slipImageUrl &&
+                  selectedTransaction.slipImageUrl.length > 0 && (
+                    <div className="mb-6 rounded-3xl overflow-hidden border border-gray-100 bg-gray-50 shadow-inner">
+                      <img
+                        src={selectedTransaction.slipImageUrl}
+                        alt="Receipt"
+                        className="w-full h-auto object-contain"
+                      />
                     </div>
                   )}
+
+                <div className="flex flex-col items-center text-center mb-8">
+                  <div
+                    className={`p-4 rounded-[2rem] mb-4 ${selectedTransaction.type === "income" ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-600"}`}
+                  >
+                    {selectedTransaction.type === "income" ? (
+                      <ArrowDownLeft size={32} />
+                    ) : (
+                      <ArrowUpRight size={32} />
+                    )}
+                  </div>
+                  <h2
+                    className={`text-3xl font-black ${selectedTransaction.type === "income" ? "text-emerald-500" : "text-red-500"}`}
+                  >
+                    {selectedTransaction.type === "income" ? "+" : "-"} ฿
+                    {selectedTransaction.amount.toLocaleString()}
+                  </h2>
+                  <p className="font-bold text-lg mt-1">
+                    {selectedTransaction.description ||
+                      selectedTransaction.note ||
+                      "ไม่มีคำอธิบาย"}
+                  </p>
+                </div>
+
+                <div className="space-y-4 bg-gray-50 p-6 rounded-3xl">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400 font-medium">วันที่</span>
+                    <span className="font-bold">
+                      {new Date(selectedTransaction.date).toLocaleDateString(
+                        "th-TH",
+                        {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        },
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium text-gray-400">หมวดหมู่</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">
+                        {typeof selectedTransaction.categoryId === "object"
+                          ? selectedTransaction.categoryId?.icon
+                          : "📦"}
+                      </span>
+                      <span className="font-bold underline decoration-indigo-200 decoration-2 underline-offset-4">
+                        {typeof selectedTransaction.categoryId === "object"
+                          ? selectedTransaction.categoryId?.name
+                          : selectedTransaction.categoryId ||
+                            selectedTransaction.categoryName ||
+                            "อื่นๆ"}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400 font-medium">ประเภท</span>
+                    <span className="font-bold uppercase text-[10px] bg-white px-2 py-0.5 rounded border border-gray-100">
+                      {selectedTransaction.type === "income"
+                        ? "รายรับ"
+                        : "รายจ่าย"}
+                    </span>
+                  </div>
+                  {selectedTransaction.note &&
+                    selectedTransaction.note !==
+                      selectedTransaction.description && (
+                      <div className="flex flex-col gap-1 pt-3 border-t border-gray-200 text-sm">
+                        <span className="text-gray-400 font-medium">
+                          หมายเหตุ
+                        </span>
+                        <span className="font-bold">
+                          {selectedTransaction.note}
+                        </span>
+                      </div>
+                    )}
+                </div>
+              </div>
+
+              <div className="p-4 bg-gray-50 border-t border-gray-100 flex gap-3">
+                <button
+                  onClick={() => {
+                    setIsEditing(true);
+                  }}
+                  className="flex-1 py-4 bg-white border border-gray-200 rounded-2xl font-bold text-indigo-600 hover:bg-indigo-50 hover:border-indigo-100 transition-all flex items-center justify-center gap-2"
+                >
+                  แก้ไข
+                </button>
+                <button
+                  onClick={() => {
+                    deleteMutation.mutate((selectedTransaction as any)._id);
+                  }}
+                  disabled={deleteMutation.isPending}
+                  className="flex-[0.6] py-4 bg-red-50 text-red-500 border border-red-100 rounded-2xl font-bold hover:bg-red-100 transition-all flex items-center justify-center gap-2"
+                >
+                  {deleteMutation.isPending ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : (
+                    <Trash2 size={18} />
+                  )}
+                  ลบ
+                </button>
               </div>
             </div>
-
-            <div className="p-4 bg-gray-50 border-t border-gray-100 flex gap-3">
-              <button
-                onClick={() => setSelectedTransaction(null)}
-                className="flex-1 py-4 bg-white border border-gray-200 rounded-2xl font-bold text-gray-500 hover:bg-gray-100 transition-all"
-              >
-                ปิด
-              </button>
-              <button
-                onClick={() => {
-                  deleteMutation.mutate(selectedTransaction._id);
-                }}
-                disabled={deleteMutation.isPending}
-                className="flex-1 py-4 bg-red-50 text-red-500 border border-red-100 rounded-2xl font-bold hover:bg-red-100 transition-all flex items-center justify-center gap-2"
-              >
-                {deleteMutation.isPending ? (
-                  <Loader2 size={18} className="animate-spin" />
-                ) : (
-                  <Trash2 size={18} />
-                )}
-                ลบรายการ
-              </button>
-            </div>
-          </div>
+          )}
         </div>
       )}
     </Layout>
