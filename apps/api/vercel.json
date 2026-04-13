@@ -1,0 +1,29 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "src/main.ts",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "src/main.ts"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "src/main.ts"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/daily-budget-check",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/monthly-summary",
+      "schedule": "0 1 1 * *"
+    }
+  ]
+}
