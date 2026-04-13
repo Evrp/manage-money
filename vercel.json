@@ -13,6 +13,11 @@
       }
     }
   ],
+  "functions": {
+    "apps/api/src/main.ts": {
+      "includeFiles": "packages/shared/**"
+    }
+  },
   "rewrites": [
     {
       "source": "/api/(.*)",
