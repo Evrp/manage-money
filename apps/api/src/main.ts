@@ -30,5 +30,12 @@ if (process.env.NODE_ENV !== "production") {
   bootstrap();
 }
 
-// Export for Vercel
-export default server;
+// Handler for Vercel
+let appPromise: any;
+export default async (req: any, res: any) => {
+  if (!appPromise) {
+    appPromise = createApp(server);
+  }
+  await appPromise;
+  return server(req, res);
+};
