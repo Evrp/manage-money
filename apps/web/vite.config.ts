@@ -6,6 +6,7 @@ import path from "path";
 export default defineConfig({
   plugins: [react()],
   resolve: {
+    extensions: [".ts", ".tsx", ".mjs", ".js", ".jsx", ".json"],
     alias: {
       "@": path.resolve(__dirname, "./src"),
       "@moneyflow/shared": path.resolve(__dirname, "../../packages/shared/src/index.ts"),
