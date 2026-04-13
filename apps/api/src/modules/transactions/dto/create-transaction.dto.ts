@@ -1,5 +1,13 @@
-import { IsDateString, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, IsMongoId } from 'class-validator';
-import { TransactionType } from '@moneyflow/shared';
+import {
+  IsDateString,
+  IsEnum,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsMongoId,
+} from "class-validator";
+import { TransactionType } from "@moneyflow/shared";
 
 export class CreateTransactionDto {
   @IsNotEmpty()

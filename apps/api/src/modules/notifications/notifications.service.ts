@@ -1,9 +1,9 @@
-import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import axios from 'axios';
-import { User } from '../../schemas/user.schema';
-import { Budget } from '../../schemas/budget.schema';
+import { Injectable } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import axios from "axios";
+import { User } from "../../schemas/user.schema";
+import { Budget } from "../../schemas/budget.schema";
 
 @Injectable()
 export class NotificationsService {
@@ -18,22 +18,32 @@ export class NotificationsService {
 
     try {
       await axios.post(
-        'https://api.line.me/v2/bot/message/push',
+        "https://api.line.me/v2/bot/message/push",
         { to, messages },
         {
           headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
           },
         },
       );
     } catch (error) {
-      console.error('LINE Push Message Error:', (error as any).response?.data || (error as any).message);
+      console.error(
+        "LINE Push Message Error:",
+        (error as any).response?.data || (error as any).message,
+      );
     }
   }
 
-  async checkBudgetAlerts(userId: string, categoryId: string, month: number, year: number) {
-    const budget = await this.budgetModel.findOne({ userId, categoryId, month, year }).populate('categoryId');
+  async checkBudgetAlerts(
+    userId: string,
+    categoryId: string,
+    month: number,
+    year: number,
+  ) {
+    const budget = await this.budgetModel
+      .findOne({ userId, categoryId, month, year })
+      .populate("categoryId");
     if (!budget || budget.limitAmount <= 0) return;
 
     const percent = (budget.spentAmount / budget.limitAmount) * 100;
@@ -51,41 +61,45 @@ export class NotificationsService {
     }
   }
 
-  private async sendBudgetAlert(lineUserId: string, budget: any, level: number) {
+  private async sendBudgetAlert(
+    lineUserId: string,
+    budget: any,
+    level: number,
+  ) {
     // Generate Flex Message JSON (Simplified for now)
-    const color = level === 90 ? '#FF3B30' : '#FF9500';
+    const color = level === 90 ? "#FF3B30" : "#FF9500";
     const message = {
-      type: 'flex',
+      type: "flex",
       altText: `⚠️ ใกล้ถึงงบประมาณ ${budget.categoryId.name} แล้ว!`,
       contents: {
-        type: 'bubble',
+        type: "bubble",
         header: {
-          type: 'box',
-          layout: 'vertical',
+          type: "box",
+          layout: "vertical",
           contents: [
             {
-              type: 'text',
-              text: 'แจ้งเตือนงบประมาณ',
-              weight: 'bold',
-              color: '#FFFFFF',
+              type: "text",
+              text: "แจ้งเตือนงบประมาณ",
+              weight: "bold",
+              color: "#FFFFFF",
             },
           ],
           backgroundColor: color,
         },
         body: {
-          type: 'box',
-          layout: 'vertical',
+          type: "box",
+          layout: "vertical",
           contents: [
             {
-              type: 'text',
+              type: "text",
               text: budget.categoryId.name,
-              weight: 'bold',
-              size: 'xl',
+              weight: "bold",
+              size: "xl",
             },
             {
-              type: 'text',
+              type: "text",
               text: `ใช้ไปแล้ว ฿${budget.spentAmount.toLocaleString()} จาก ฿${budget.limitAmount.toLocaleString()}`,
-              margin: 'md',
+              margin: "md",
             },
           ],
         },

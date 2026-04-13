@@ -1,9 +1,12 @@
-import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
-import { DashboardService } from './dashboard.service';
-import { DashboardController } from './dashboard.controller';
-import { Transaction, TransactionSchema } from '../../schemas/transaction.schema';
-import { Category, CategorySchema } from '../../schemas/category.schema';
+import { Module } from "@nestjs/common";
+import { MongooseModule } from "@nestjs/mongoose";
+import { DashboardService } from "./dashboard.service";
+import { DashboardController } from "./dashboard.controller";
+import {
+  Transaction,
+  TransactionSchema,
+} from "../../schemas/transaction.schema";
+import { Category, CategorySchema } from "../../schemas/category.schema";
 
 @Module({
   imports: [

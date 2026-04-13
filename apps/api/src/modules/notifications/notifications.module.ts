@@ -1,8 +1,8 @@
-import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
-import { NotificationsService } from './notifications.service';
-import { User, UserSchema } from '../../schemas/user.schema';
-import { Budget, BudgetSchema } from '../../schemas/budget.schema';
+import { Module } from "@nestjs/common";
+import { MongooseModule } from "@nestjs/mongoose";
+import { NotificationsService } from "./notifications.service";
+import { User, UserSchema } from "../../schemas/user.schema";
+import { Budget, BudgetSchema } from "../../schemas/budget.schema";
 
 @Module({
   imports: [

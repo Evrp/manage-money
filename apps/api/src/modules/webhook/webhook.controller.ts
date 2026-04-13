@@ -1,18 +1,24 @@
-import { Controller, Post, Body, Headers, BadRequestException } from '@nestjs/common';
-import { WebhookService } from './webhook.service';
-import * as crypto from 'crypto';
+import {
+  Controller,
+  Post,
+  Body,
+  Headers,
+  BadRequestException,
+} from "@nestjs/common";
+import { WebhookService } from "./webhook.service";
+import * as crypto from "crypto";
 
-@Controller('webhook')
+@Controller("webhook")
 export class WebhookController {
   constructor(private readonly webhookService: WebhookService) {}
 
   @Post()
   async handleWebhook(
     @Body() body: any,
-    @Headers('x-line-signature') signature: string,
+    @Headers("x-line-signature") signature: string,
   ) {
     if (!this.verifySignature(JSON.stringify(body), signature)) {
-      throw new BadRequestException('Invalid signature');
+      throw new BadRequestException("Invalid signature");
     }
 
     const events = body.events || [];
@@ -28,9 +34,9 @@ export class WebhookController {
     if (!channelSecret || !signature) return false;
 
     const hash = crypto
-      .createHmac('sha256', channelSecret)
+      .createHmac("sha256", channelSecret)
       .update(body)
-      .digest('base64');
+      .digest("base64");
 
     return hash === signature;
   }

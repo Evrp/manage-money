@@ -1,13 +1,13 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
-import { TransactionType, ITransaction, ISlipData } from '@moneyflow/shared';
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document, Types } from "mongoose";
+import { TransactionType, ITransaction, ISlipData } from "@moneyflow/shared";
 
 @Schema({ timestamps: true })
 export class Transaction extends Document implements ITransaction {
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
+  @Prop({ type: Types.ObjectId, ref: "User", required: true, index: true })
   userId: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'Category', required: true })
+  @Prop({ type: Types.ObjectId, ref: "Category", required: true })
   categoryId: string;
 
   @Prop({ type: String, enum: TransactionType, required: true })

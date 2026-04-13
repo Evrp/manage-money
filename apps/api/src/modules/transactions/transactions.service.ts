@@ -148,7 +148,11 @@ export class TransactionsService {
     );
 
     // 3. Apply budget for new transaction if it is an expense
-    if (newTransaction && newTransaction.type === "expense" && newTransaction.categoryId) {
+    if (
+      newTransaction &&
+      newTransaction.type === "expense" &&
+      newTransaction.categoryId
+    ) {
       const newCatId =
         typeof newTransaction.categoryId === "object"
           ? (newTransaction.categoryId as any)._id

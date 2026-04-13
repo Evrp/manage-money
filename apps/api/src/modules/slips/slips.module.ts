@@ -1,9 +1,9 @@
-import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
-import { SlipsService } from './slips.service';
-import { SlipsController } from './slips.controller';
-import { SlipUpload, SlipUploadSchema } from '../../schemas/slip-upload.schema';
-import { TransactionsModule } from '../transactions/transactions.module';
+import { Module } from "@nestjs/common";
+import { MongooseModule } from "@nestjs/mongoose";
+import { SlipsService } from "./slips.service";
+import { SlipsController } from "./slips.controller";
+import { SlipUpload, SlipUploadSchema } from "../../schemas/slip-upload.schema";
+import { TransactionsModule } from "../transactions/transactions.module";
 
 @Module({
   imports: [

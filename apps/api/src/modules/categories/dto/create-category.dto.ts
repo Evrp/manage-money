@@ -1,5 +1,11 @@
-import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
-import { CategoryType } from '@moneyflow/shared';
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from "class-validator";
+import { CategoryType } from "@moneyflow/shared";
 
 export class CreateCategoryDto {
   @IsNotEmpty()

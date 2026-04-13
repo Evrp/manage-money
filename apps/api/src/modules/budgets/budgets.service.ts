@@ -75,7 +75,8 @@ export class BudgetsService {
           { $group: { _id: null, total: { $sum: "$amount" } } },
         ]);
 
-        const actualSpent = transactionsResult.length > 0 ? transactionsResult[0].total : 0;
+        const actualSpent =
+          transactionsResult.length > 0 ? transactionsResult[0].total : 0;
 
         // Update DB if it differs (optional but good for consistency)
         if (budget.spentAmount !== actualSpent) {

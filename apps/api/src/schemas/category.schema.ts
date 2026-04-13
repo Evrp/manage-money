@@ -1,10 +1,10 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
-import { CategoryType, ICategory } from '@moneyflow/shared';
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document, Types } from "mongoose";
+import { CategoryType, ICategory } from "@moneyflow/shared";
 
 @Schema({ timestamps: true })
 export class Category extends Document implements ICategory {
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
+  @Prop({ type: Types.ObjectId, ref: "User", required: true, index: true })
   userId: string;
 
   @Prop({ required: true })

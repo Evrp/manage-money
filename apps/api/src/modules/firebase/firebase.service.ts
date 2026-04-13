@@ -1,7 +1,7 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import * as admin from 'firebase-admin';
-import * as path from 'path';
+import { Injectable, OnModuleInit } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import * as admin from "firebase-admin";
+import * as path from "path";
 
 @Injectable()
 export class FirebaseService implements OnModuleInit {
@@ -10,8 +10,12 @@ export class FirebaseService implements OnModuleInit {
   constructor(private configService: ConfigService) {}
 
   onModuleInit() {
-    const serviceAccount = this.configService.get<string>("FIREBASE_SERVICE_ACCOUNT");
-    const bucketName = this.configService.get<string>("FIREBASE_STORAGE_BUCKET");
+    const serviceAccount = this.configService.get<string>(
+      "FIREBASE_SERVICE_ACCOUNT",
+    );
+    const bucketName = this.configService.get<string>(
+      "FIREBASE_STORAGE_BUCKET",
+    );
 
     if (!admin.apps.length) {
       if (serviceAccount) {
@@ -40,12 +44,15 @@ export class FirebaseService implements OnModuleInit {
     return this.storage.bucket();
   }
 
-  async getSignedUrl(filePath: string, expires: number = 3600): Promise<string> {
+  async getSignedUrl(
+    filePath: string,
+    expires: number = 3600,
+  ): Promise<string> {
     const bucket = this.getBucket();
     const file = bucket.file(filePath);
 
     const [url] = await file.getSignedUrl({
-      action: 'read',
+      action: "read",
       expires: Date.now() + expires * 1000,
     });
 
@@ -64,18 +71,18 @@ export class FirebaseService implements OnModuleInit {
       let filePath: string | null = null;
 
       // Logic to extract path from Firebase/GCS URLs
-      if (url.includes('storage.googleapis.com')) {
+      if (url.includes("storage.googleapis.com")) {
         // Handle format: https://storage.googleapis.com/bucket/path/to/file or signed variants
         const bucketName = bucket.name;
         const parts = url.split(`${bucketName}/`);
         if (parts.length > 1) {
-          filePath = decodeURIComponent(parts[1].split('?')[0]);
+          filePath = decodeURIComponent(parts[1].split("?")[0]);
         }
-      } else if (url.includes('firebasestorage.googleapis.com')) {
+      } else if (url.includes("firebasestorage.googleapis.com")) {
         // Handle format: https://firebasestorage.googleapis.com/v0/b/bucket/o/path%2Fto%2Ffile?alt=media...
-        const parts = url.split('/o/');
+        const parts = url.split("/o/");
         if (parts.length > 1) {
-          filePath = decodeURIComponent(parts[1].split('?')[0]);
+          filePath = decodeURIComponent(parts[1].split("?")[0]);
         }
       }
 
@@ -90,7 +97,7 @@ export class FirebaseService implements OnModuleInit {
     } catch (error) {
       // We don't want to fail the whole delete operation if storage delete fails,
       // but we should log it.
-      console.error('Failed to delete file from Firebase Storage:', error);
+      console.error("Failed to delete file from Firebase Storage:", error);
     }
   }
 }

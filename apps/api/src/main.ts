@@ -11,10 +11,12 @@ export const createApp = async (expressInstance: any) => {
     AppModule,
     new ExpressAdapter(expressInstance),
   );
-  app.useGlobalPipes(new ValidationPipe({
-    transform: true,
-    transformOptions: { enableImplicitConversion: true },
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      transformOptions: { enableImplicitConversion: true },
+    }),
+  );
   app.enableCors();
   await app.init();
   return app;
@@ -25,7 +27,9 @@ if (process.env.NODE_ENV !== "production") {
   const bootstrap = async () => {
     const app = await createApp(server);
     await app.listen(process.env.PORT || 3000);
-    console.log(`Application is running on: http://localhost:${process.env.PORT || 3000}`);
+    console.log(
+      `Application is running on: http://localhost:${process.env.PORT || 3000}`,
+    );
   };
   bootstrap();
 }

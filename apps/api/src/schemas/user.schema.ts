@@ -1,6 +1,6 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
-import { Theme, IUser } from '@moneyflow/shared';
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document } from "mongoose";
+import { Theme, IUser } from "@moneyflow/shared";
 
 @Schema({ timestamps: true })
 export class User extends Document implements IUser {
@@ -19,7 +19,7 @@ export class User extends Document implements IUser {
   @Prop({ type: String, enum: Theme, default: Theme.LIGHT })
   theme: Theme;
 
-  @Prop({ default: 'THB' })
+  @Prop({ default: "THB" })
   currency: string;
 
   @Prop()
