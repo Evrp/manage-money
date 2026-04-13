@@ -1,18 +1,20 @@
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import Layout from "../components/layout/Layout";
 import {
   Search,
   Filter,
-  Calendar,
+  Calendar as CalendarIcon,
   ArrowUpRight,
   ArrowDownLeft,
   X,
   Loader2,
   Trash2,
+  RotateCcw,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../services/api";
 import { useCategories } from "../hooks/useCategories";
+import Calendar from "../components/ui/Calendar";
 
 interface Transaction {
   _id: string;
@@ -38,6 +40,11 @@ const TransactionsPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().split("T")[0],
+  );
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [showCategoryFilter, setShowCategoryFilter] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
+    null,
   );
   const [selectedTransaction, setSelectedTransaction] =
     useState<Transaction | null>(null);
@@ -81,9 +88,19 @@ const TransactionsPage = () => {
       return t;
     });
 
-    if (!searchTerm) return enriched;
+    // Filter by category if selected
+    const categoryFiltered = selectedCategoryId
+      ? enriched.filter(
+          (t: Transaction) =>
+            (typeof t.categoryId === "object"
+              ? t.categoryId?._id
+              : t.categoryId) === selectedCategoryId,
+        )
+      : enriched;
+
+    if (!searchTerm) return categoryFiltered;
     const lowerSearch = searchTerm.toLowerCase();
-    return enriched.filter((t: Transaction) => {
+    return categoryFiltered.filter((t: Transaction) => {
       const descMatch = (t.description || "")
         .toLowerCase()
         .includes(lowerSearch);
@@ -97,7 +114,7 @@ const TransactionsPage = () => {
         .includes(lowerSearch);
       return descMatch || noteMatch || catNameMatch;
     });
-  }, [transactions, searchTerm, categories]);
+  }, [transactions, searchTerm, categories, selectedCategoryId]);
 
   // Group by date
   const groupedTransactions = useMemo(() => {
@@ -137,26 +154,51 @@ const TransactionsPage = () => {
   return (
     <Layout>
       <div className="flex flex-col gap-6">
-        <header className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">รายการเงินของคุณ</h1>
+        <header className="flex justify-between items-center px-1">
+          <div>
+            <h1 className="text-2xl font-black text-gray-800">รายงาน</h1>
+            <p className="text-gray-400 text-sm font-medium">
+              ติดตามการไหลเวียนของเงิน
+            </p>
+          </div>
           <div className="relative">
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
-            />
-            <button className="bg-white p-2.5 rounded-2xl border border-gray-100 shadow-sm text-gray-500 hover:text-indigo-600 transition-colors pointer-events-none">
-              <Calendar size={20} />
+            <button
+              onClick={() => setShowCalendar(true)}
+              className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-gray-400 hover:text-indigo-600 hover:border-indigo-100 transition-all active:scale-95"
+            >
+              <CalendarIcon size={20} />
             </button>
+
+            {showCalendar && (
+              <div
+                className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+                onClick={() => setShowCalendar(false)}
+              >
+                <div onClick={(e) => e.stopPropagation()}>
+                  <Calendar
+                    selectedDate={dateObj}
+                    onChange={(date) => {
+                      const dateStr =
+                        date.getFullYear() +
+                        "-" +
+                        String(date.getMonth() + 1).padStart(2, "0") +
+                        "-" +
+                        String(date.getDate()).padStart(2, "0");
+                      setSelectedDate(dateStr);
+                    }}
+                    onClose={() => setShowCalendar(false)}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </header>
 
         {/* Search & Filter */}
         <div className="flex gap-2">
-          <div className="flex-1 relative">
+          <div className="flex-1 relative group">
             <Search
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-500 transition-colors"
               size={18}
             />
             <input
@@ -164,12 +206,91 @@ const TransactionsPage = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="ค้นหารายการ..."
-              className="w-full pl-12 pr-4 py-3 bg-white rounded-2xl border border-gray-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all text-sm"
+              className="w-full pl-12 pr-4 py-4 bg-white rounded-2xl border border-gray-100 shadow-sm focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm font-medium"
             />
           </div>
-          <button className="bg-white px-4 rounded-2xl border border-gray-100 shadow-sm text-gray-500 hover:bg-gray-50 transition-colors">
-            <Filter size={20} />
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowCategoryFilter(true)}
+              className={`px-4 rounded-2xl border shadow-sm transition-all h-full ${
+                selectedCategoryId
+                  ? "bg-indigo-600 border-indigo-600 text-white"
+                  : "bg-white border-gray-100 text-gray-400 hover:bg-gray-50"
+              }`}
+            >
+              <Filter size={20} />
+            </button>
+
+            {/* Category Filter Modal */}
+            {showCategoryFilter && (
+              <div
+                className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm"
+                onClick={() => setShowCategoryFilter(false)}
+              >
+                <div
+                  className="bg-white w-full max-w-sm rounded-t-[2.5rem] sm:rounded-[2.5rem] p-8 shadow-2xl animate-in slide-in-from-bottom duration-300"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xl font-black text-gray-800">
+                      ตัวกรองหมวดหมู่
+                    </h3>
+                    <button
+                      onClick={() => setShowCategoryFilter(false)}
+                      className="p-2 hover:bg-gray-100 rounded-full text-gray-400"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-3 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
+                    <button
+                      onClick={() => {
+                        setSelectedCategoryId(null);
+                        setShowCategoryFilter(false);
+                      }}
+                      className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all border-2 ${
+                        selectedCategoryId === null
+                          ? "bg-indigo-50 border-indigo-200 text-indigo-600"
+                          : "bg-white border-gray-50 text-gray-400"
+                      }`}
+                    >
+                      <span className="text-lg">
+                        <RotateCcw size={18} />
+                      </span>
+                      <span className="text-[10px] font-bold">ทั้งหมด</span>
+                    </button>
+                    {categories.map((cat: any) => (
+                      <button
+                        key={cat._id}
+                        onClick={() => {
+                          setSelectedCategoryId(cat._id);
+                          setShowCategoryFilter(false);
+                        }}
+                        className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all border-2 ${
+                          selectedCategoryId === cat._id
+                            ? "bg-indigo-600 border-indigo-600 text-white"
+                            : "bg-white border-gray-50 text-gray-400 hover:border-indigo-100"
+                        }`}
+                      >
+                        <span className="text-lg">{cat.icon || "📦"}</span>
+                        <span className="text-[10px] font-bold truncate w-full text-center">
+                          {cat.name}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={() => setShowCategoryFilter(false)}
+                    className="w-full mt-8 py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm shadow-xl shadow-indigo-100 active:scale-95 transition-all"
+                  >
+                    ตกลง
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Tabs */}
@@ -277,15 +398,16 @@ const TransactionsPage = () => {
                 </button>
               </div>
 
-              {selectedTransaction.slipImageUrl && (
-                <div className="mb-6 rounded-3xl overflow-hidden border border-gray-100 bg-gray-50 shadow-inner">
-                  <img
-                    src={selectedTransaction.slipImageUrl}
-                    alt="Receipt"
-                    className="w-full h-auto object-contain"
-                  />
-                </div>
-              )}
+              {selectedTransaction.slipImageUrl &&
+                selectedTransaction.slipImageUrl.length > 0 && (
+                  <div className="mb-6 rounded-3xl overflow-hidden border border-gray-100 bg-gray-50 shadow-inner">
+                    <img
+                      src={selectedTransaction.slipImageUrl}
+                      alt="Receipt"
+                      className="w-full h-auto object-contain"
+                    />
+                  </div>
+                )}
 
               <div className="flex flex-col items-center text-center mb-8">
                 <div
