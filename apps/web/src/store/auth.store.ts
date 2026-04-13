@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { IUser } from '../../../../packages/shared/src/index';
+import { IUser } from '@moneyflow/shared';
 
 interface AuthState {
   user: IUser | null;

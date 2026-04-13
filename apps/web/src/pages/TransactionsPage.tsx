@@ -69,7 +69,7 @@ const TransactionsPage = () => {
     },
   });
 
-  const transactions = transactionsResponse?.data || [];
+  const transactions = useMemo(() => transactionsResponse?.data || [], [transactionsResponse?.data]);
 
   const { data: categories = [] } = useCategories();
 
@@ -109,7 +109,7 @@ const TransactionsPage = () => {
       const noteMatch = (t.note || "").toLowerCase().includes(lowerSearch);
       const catNameMatch = (
         typeof t.categoryId === "object"
-          ? t.categoryId?.name
+          ? t.categoryId?.name || ""
           : t.categoryId || ""
       )
         .toLowerCase()
