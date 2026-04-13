@@ -17,13 +17,18 @@ export class TransactionsService {
 
   async findAll(userId: string, query: QueryTransactionDto) {
     const { month, year, categoryId, type, page = 1, limit = 20 } = query;
-    const filter: any = { userId };
+    const userObjectId = new Types.ObjectId(userId);
+    const filter: any = {
+      userId: { $in: [userId, userObjectId] },
+    };
 
     if (month && year) {
       filter.month = month;
       filter.year = year;
     }
-    if (categoryId) filter.categoryId = categoryId;
+    if (categoryId) {
+      filter.categoryId = { $in: [categoryId, new Types.ObjectId(categoryId)] };
+    }
     if (type) filter.type = type;
 
     const skip = (page - 1) * limit;

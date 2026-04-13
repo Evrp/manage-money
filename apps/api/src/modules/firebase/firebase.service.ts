@@ -37,7 +37,7 @@ export class FirebaseService implements OnModuleInit {
             process.cwd(),
             "src/modules/firebase/manager-money-f9507-firebase-adminsdk-fbsvc-4eaf51239a.json",
           );
-          
+
           if (fs.existsSync(serviceAccountPath)) {
             admin.initializeApp({
               credential: admin.credential.cert(serviceAccountPath),
@@ -48,10 +48,15 @@ export class FirebaseService implements OnModuleInit {
             console.warn("Firebase local credentials file not found.");
           }
         } catch (error) {
-          console.warn("Firebase fallback initialization failed:", error.message);
+          console.warn(
+            "Firebase fallback initialization failed:",
+            error.message,
+          );
         }
       } else {
-        console.warn("Firebase credentials not provided. Firebase features disabled.");
+        console.warn(
+          "Firebase credentials not provided. Firebase features disabled.",
+        );
       }
     }
 
@@ -62,7 +67,9 @@ export class FirebaseService implements OnModuleInit {
 
   getBucket() {
     if (!this.storage) {
-      throw new Error("Firebase storage is not initialized properly. Check environment variables.");
+      throw new Error(
+        "Firebase storage is not initialized properly. Check environment variables.",
+      );
     }
     return this.storage.bucket();
   }

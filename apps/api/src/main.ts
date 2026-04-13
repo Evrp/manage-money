@@ -18,8 +18,10 @@ export const createApp = async (expressInstance: any) => {
     }),
   );
   app.enableCors({
-    origin: process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',') : true,
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    origin: process.env.FRONTEND_URL
+      ? process.env.FRONTEND_URL.split(",")
+      : true,
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
     credentials: true,
   });
   await app.init();
