@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2021",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "strict": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": false,
+    "noImplicitAny": false,
+    "strictBindCallApply": false,
+    "noFallthroughCasesInSwitch": false,
+    "useDefineForClassFields": false,
+    "baseUrl": "..",
+    "paths": {
+      "@moneyflow/shared": ["packages/shared/src/index.ts"],
+      "@moneyflow/shared/*": ["packages/shared/src/*"]
+    }
+  },
+  "include": [
+    "index.ts",
+    "../apps/api/src/**/*.ts",
+    "../packages/shared/src/**/*.ts"
+  ]
+}
