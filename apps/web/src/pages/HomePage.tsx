@@ -13,6 +13,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import TransactionForm from "../components/ui/TransactionForm";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCategories } from "../hooks/useCategories";
 
 interface Transaction {
   _id: string;
@@ -56,6 +57,24 @@ const HomePage = () => {
       return data.data;
     },
   });
+
+  const { data: categories = [] } = useCategories();
+
+  const enrichedRecentTransactions = useMemo(() => {
+    if (!recentTransactions) return [];
+    return recentTransactions.map((t: any) => {
+      if (typeof t.categoryId === "string") {
+        const cat = categories.find((c: any) => c._id === t.categoryId);
+        if (cat) {
+          return {
+            ...t,
+            categoryId: { _id: cat._id, name: cat.name, icon: cat.icon },
+          };
+        }
+      }
+      return t;
+    });
+  }, [recentTransactions, categories]);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -154,8 +173,9 @@ const HomePage = () => {
                       "",
                     type:
                       ocrResult.extractedData.transactionType === "income"
-                        ? "income"
-                        : "expense",
+                         ? "income"
+                         : "expense",
+                    suggestedCategory: ocrResult.extractedData.suggestedCategory,
                     slipImageUrl: ocrResult.imageUrl,
                   }
                 : null
@@ -270,12 +290,12 @@ const HomePage = () => {
                   className="h-20 bg-gray-50 animate-pulse rounded-3xl"
                 />
               ))
-            ) : recentTransactions?.length === 0 ? (
+            ) : enrichedRecentTransactions?.length === 0 ? (
               <div className="text-center py-10 text-gray-400 text-sm bg-gray-50 rounded-3xl">
                 ยังไม่มีรายการบันทึก
               </div>
             ) : (
-              recentTransactions?.map((t: any) => (
+              enrichedRecentTransactions?.map((t: any) => (
                 <div
                   key={t._id}
                   onClick={() => navigate("/transactions")}
@@ -299,7 +319,9 @@ const HomePage = () => {
                       </p>
                       <span className="h-1 w-1 rounded-full bg-gray-200" />
                       <p className="text-[10px] text-indigo-500 font-bold">
-                        {t.categoryId?.name || "อื่นๆ"}
+                        {typeof t.categoryId === "object" 
+                          ? t.categoryId?.name 
+                          : (t.categoryId || "อื่นๆ")}
                       </p>
                     </div>
                   </div>

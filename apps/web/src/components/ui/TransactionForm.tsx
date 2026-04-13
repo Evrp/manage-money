@@ -32,6 +32,19 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ initialData, onClose,
 
   const filteredCategories = categories?.filter(c => c.type === formData.type) || [];
 
+  // Auto-select category if initialData has a suggested name
+  React.useEffect(() => {
+    if (initialData?.suggestedCategory && categories && !formData.categoryId) {
+      const matched = categories.find(c => 
+        c.name.includes(initialData.suggestedCategory) || 
+        initialData.suggestedCategory.includes(c.name)
+      );
+      if (matched) {
+        setFormData(prev => ({ ...prev, categoryId: matched._id }));
+      }
+    }
+  }, [categories, initialData, formData.categoryId]);
+
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;

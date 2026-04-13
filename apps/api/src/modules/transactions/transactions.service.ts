@@ -51,20 +51,20 @@ export class TransactionsService {
     
     const saved = await transaction.save();
     
-    // Populate before returning to frontend
-    const populated = await this.transactionModel.findById(saved._id).populate('categoryId').exec();
+    // Populate directly on the document for immediate consistency
+    const populated = await saved.populate('categoryId');
 
-    if (saved.type === 'expense' && populated) {
+    if (saved.type === 'expense') {
       await this.budgetsService.updateSpentAmount(
         userId,
-        saved.categoryId.toString(), // Ensure string ID
+        saved.categoryId.toString(),
         saved.month,
         saved.year,
         saved.amount,
       );
     }
     
-    return populated || saved;
+    return populated;
   }
 
   async remove(userId: string, id: string) {

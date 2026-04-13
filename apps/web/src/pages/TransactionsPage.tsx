@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../services/api";
+import { useCategories } from "../hooks/useCategories";
 
 interface Transaction {
   _id: string;
@@ -61,16 +62,31 @@ const TransactionsPage = () => {
 
   const transactions = transactionsResponse?.data || [];
 
+  const { data: categories = [] } = useCategories();
+
   const filteredTransactions = useMemo(() => {
-    if (!searchTerm) return transactions;
+    if (!transactions) return [];
+    
+    // Enrich transactions with local category mapping if populate failed
+    const enriched = transactions.map((t: Transaction) => {
+      if (typeof t.categoryId === 'string') {
+        const cat = categories.find((c: any) => c._id === t.categoryId);
+        if (cat) {
+          return { ...t, categoryId: { _id: cat._id, name: cat.name, icon: cat.icon } };
+        }
+      }
+      return t;
+    });
+
+    if (!searchTerm) return enriched;
     const lowerSearch = searchTerm.toLowerCase();
-    return transactions.filter((t: Transaction) => {
+    return enriched.filter((t: Transaction) => {
       const descMatch = (t.description || "").toLowerCase().includes(lowerSearch);
       const noteMatch = (t.note || "").toLowerCase().includes(lowerSearch);
-      const catNameMatch = (t.categoryId?.name || t.categoryName || "").toLowerCase().includes(lowerSearch);
+      const catNameMatch = (typeof t.categoryId === 'object' ? t.categoryId?.name : (t.categoryId || "")).toLowerCase().includes(lowerSearch);
       return descMatch || noteMatch || catNameMatch;
     });
-  }, [transactions, searchTerm]);
+  }, [transactions, searchTerm, categories]);
 
   // Group by date
   const groupedTransactions = useMemo(() => {
@@ -196,15 +212,17 @@ const TransactionsPage = () => {
                         )}
                       </div>
                       <div className="flex-1">
-                        <p className="font-bold text-sm">
+                        <p className="text-sm font-bold">
                           {t.description || t.note || "ไม่มีคำอธิบาย"}
                         </p>
                         <div className="flex items-center gap-1.5 opacity-60">
                           <span className="text-[10px]">
-                            {t.categoryId?.icon || "📦"}
+                            {typeof t.categoryId === "object" ? t.categoryId?.icon : "📦"}
                           </span>
                           <p className="text-[10px] font-bold">
-                            {t.categoryId?.name || t.categoryName || "อื่นๆ"}
+                            {typeof t.categoryId === "object" 
+                              ? t.categoryId?.name 
+                              : (t.categoryId || t.categoryName || "อื่นๆ")}
                           </p>
                         </div>
                       </div>
@@ -294,19 +312,19 @@ const TransactionsPage = () => {
                     )}
                   </span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-400 font-medium">หมวดหมู่</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-base">
-                      {selectedTransaction.categoryId?.icon || "📦"}
-                    </span>
-                    <span className="font-bold underline decoration-indigo-200 decoration-2 underline-offset-4">
-                      {selectedTransaction.categoryId?.name ||
-                        selectedTransaction.categoryName ||
-                        "อื่นๆ"}
-                    </span>
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium text-gray-400">หมวดหมู่</span>
+                    <div className="flex items-center gap-2">
+                       <span className="text-base">
+                        {typeof selectedTransaction.categoryId === "object" ? selectedTransaction.categoryId?.icon : "📦"}
+                       </span>
+                       <span className="font-bold underline decoration-indigo-200 decoration-2 underline-offset-4">
+                        {typeof selectedTransaction.categoryId === "object" 
+                          ? selectedTransaction.categoryId?.name 
+                          : (selectedTransaction.categoryId || selectedTransaction.categoryName || "อื่นๆ")}
+                      </span>
+                    </div>
                   </div>
-                </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-400 font-medium">ประเภท</span>
                   <span className="font-bold uppercase text-[10px] bg-white px-2 py-0.5 rounded border border-gray-100">
