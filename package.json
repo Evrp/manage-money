@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspaces --if-present",
-    "build": "npm run build --workspace=web --workspace=api --if-present",
+    "build": "npm run build --workspace=@moneyflow/shared && npm run build --workspace=web --workspace=api --if-present",
     "install:all": "npm install && npm install --workspaces",
     "lint": "npm run lint --workspaces"
   },
