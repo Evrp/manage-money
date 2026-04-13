@@ -51,7 +51,7 @@ const AnalyticsPage: React.FC = () => {
   const isLoading = isSummaryLoading || isTrendsLoading || isBreakdownLoading;
 
   // Calculate top expense for scaling progress bars
-  const maxExpense = breakdown ? Math.max(...breakdown.map((b: any) => b.value), 0) : 0;
+  const maxExpense = Array.isArray(breakdown) ? Math.max(...breakdown.map((b: any) => b.value), 0) : 0;
 
   return (
     <Layout>
@@ -135,9 +135,10 @@ const AnalyticsPage: React.FC = () => {
               <div className="w-full h-full flex items-center justify-center">
                 <Loader2 className="animate-spin text-gray-200" size={32} />
               </div>
-            ) : (
-              trends?.map((data: any) => {
-                const height = data.expense > 0 ? (data.expense / Math.max(...trends.map((t: any) => t.expense), 1)) * 100 : 0;
+            ) : Array.isArray(trends) ? (
+              trends.map((data: any) => {
+                const maxExp = Math.max(...trends.map((t: any) => t.expense), 1);
+                const height = data.expense > 0 ? (data.expense / maxExp) * 100 : 0;
                 const isCurrent = data.month === selectedMonth;
                 
                 return (
@@ -158,6 +159,10 @@ const AnalyticsPage: React.FC = () => {
                   </div>
                 )
               })
+            ) : (
+                <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-gray-300">
+                    ไม่มีข้อมูลเทรนด์
+                </div>
             )}
           </div>
         </section>
@@ -177,7 +182,7 @@ const AnalyticsPage: React.FC = () => {
                   </div>
                 </div>
               ))
-            ) : breakdown?.length > 0 ? (
+            ) : Array.isArray(breakdown) && breakdown.length > 0 ? (
               breakdown.slice(0, 5).map((item: any, idx: number) => {
                 const percentage = (item.value / maxExpense) * 100;
                 

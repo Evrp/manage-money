@@ -69,7 +69,7 @@ const BudgetsPage = () => {
   });
 
   const totals = useMemo(() => {
-    if (!budgets) return { actualSpent: 0, budgetedSpent: 0, limit: 0, percent: 0 };
+    if (!Array.isArray(budgets)) return { actualSpent: 0, budgetedSpent: 0, limit: 0, percent: 0 };
     
     const actualSpent = budgets.reduce((acc, b) => acc + b.spentAmount, 0);
     const budgetedItems = budgets.filter(b => b.limitAmount > 0);
@@ -80,8 +80,8 @@ const BudgetsPage = () => {
     return { actualSpent, budgetedSpent, limit, percent };
   }, [budgets]);
 
-  const budgetedBudgets = budgets?.filter(b => b.limitAmount > 0) || [];
-  const unbudgetedBudgets = budgets?.filter(b => b.limitAmount === 0) || [];
+  const budgetedBudgets = Array.isArray(budgets) ? budgets.filter(b => b.limitAmount > 0) : [];
+  const unbudgetedBudgets = Array.isArray(budgets) ? budgets.filter(b => b.limitAmount === 0) : [];
 
   const handleEditLimit = (budget: Budget) => {
     setEditingBudget(budget);
