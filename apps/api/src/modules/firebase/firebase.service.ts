@@ -55,10 +55,15 @@ export class FirebaseService implements OnModuleInit {
       }
     }
 
-    this.storage = admin.storage();
+    if (admin.apps.length) {
+      this.storage = admin.storage();
+    }
   }
 
   getBucket() {
+    if (!this.storage) {
+      throw new Error("Firebase storage is not initialized properly. Check environment variables.");
+    }
     return this.storage.bucket();
   }
 
