@@ -66,13 +66,16 @@ const TransactionsPage = () => {
 
   const filteredTransactions = useMemo(() => {
     if (!transactions) return [];
-    
+
     // Enrich transactions with local category mapping if populate failed
     const enriched = transactions.map((t: Transaction) => {
-      if (typeof t.categoryId === 'string') {
+      if (typeof t.categoryId === "string") {
         const cat = categories.find((c: any) => c._id === t.categoryId);
         if (cat) {
-          return { ...t, categoryId: { _id: cat._id, name: cat.name, icon: cat.icon } };
+          return {
+            ...t,
+            categoryId: { _id: cat._id, name: cat.name, icon: cat.icon },
+          };
         }
       }
       return t;
@@ -81,9 +84,17 @@ const TransactionsPage = () => {
     if (!searchTerm) return enriched;
     const lowerSearch = searchTerm.toLowerCase();
     return enriched.filter((t: Transaction) => {
-      const descMatch = (t.description || "").toLowerCase().includes(lowerSearch);
+      const descMatch = (t.description || "")
+        .toLowerCase()
+        .includes(lowerSearch);
       const noteMatch = (t.note || "").toLowerCase().includes(lowerSearch);
-      const catNameMatch = (typeof t.categoryId === 'object' ? t.categoryId?.name : (t.categoryId || "")).toLowerCase().includes(lowerSearch);
+      const catNameMatch = (
+        typeof t.categoryId === "object"
+          ? t.categoryId?.name
+          : t.categoryId || ""
+      )
+        .toLowerCase()
+        .includes(lowerSearch);
       return descMatch || noteMatch || catNameMatch;
     });
   }, [transactions, searchTerm, categories]);
@@ -112,6 +123,7 @@ const TransactionsPage = () => {
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
       queryClient.invalidateQueries({ queryKey: ["recent-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["budgets"] });
       setSelectedTransaction(null);
     },
   });
@@ -217,12 +229,14 @@ const TransactionsPage = () => {
                         </p>
                         <div className="flex items-center gap-1.5 opacity-60">
                           <span className="text-[10px]">
-                            {typeof t.categoryId === "object" ? t.categoryId?.icon : "📦"}
+                            {typeof t.categoryId === "object"
+                              ? t.categoryId?.icon
+                              : "📦"}
                           </span>
                           <p className="text-[10px] font-bold">
-                            {typeof t.categoryId === "object" 
-                              ? t.categoryId?.name 
-                              : (t.categoryId || t.categoryName || "อื่นๆ")}
+                            {typeof t.categoryId === "object"
+                              ? t.categoryId?.name
+                              : t.categoryId || t.categoryName || "อื่นๆ"}
                           </p>
                         </div>
                       </div>
@@ -312,19 +326,23 @@ const TransactionsPage = () => {
                     )}
                   </span>
                 </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="font-medium text-gray-400">หมวดหมู่</span>
-                    <div className="flex items-center gap-2">
-                       <span className="text-base">
-                        {typeof selectedTransaction.categoryId === "object" ? selectedTransaction.categoryId?.icon : "📦"}
-                       </span>
-                       <span className="font-bold underline decoration-indigo-200 decoration-2 underline-offset-4">
-                        {typeof selectedTransaction.categoryId === "object" 
-                          ? selectedTransaction.categoryId?.name 
-                          : (selectedTransaction.categoryId || selectedTransaction.categoryName || "อื่นๆ")}
-                      </span>
-                    </div>
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium text-gray-400">หมวดหมู่</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">
+                      {typeof selectedTransaction.categoryId === "object"
+                        ? selectedTransaction.categoryId?.icon
+                        : "📦"}
+                    </span>
+                    <span className="font-bold underline decoration-indigo-200 decoration-2 underline-offset-4">
+                      {typeof selectedTransaction.categoryId === "object"
+                        ? selectedTransaction.categoryId?.name
+                        : selectedTransaction.categoryId ||
+                          selectedTransaction.categoryName ||
+                          "อื่นๆ"}
+                    </span>
                   </div>
+                </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-400 font-medium">ประเภท</span>
                   <span className="font-bold uppercase text-[10px] bg-white px-2 py-0.5 rounded border border-gray-100">
@@ -357,9 +375,7 @@ const TransactionsPage = () => {
               </button>
               <button
                 onClick={() => {
-                  if (window.confirm("คุณต้องการลบรายการนี้ใช่หรือไม่?")) {
-                    deleteMutation.mutate(selectedTransaction._id);
-                  }
+                  deleteMutation.mutate(selectedTransaction._id);
                 }}
                 disabled={deleteMutation.isPending}
                 className="flex-1 py-4 bg-red-50 text-red-500 border border-red-100 rounded-2xl font-bold hover:bg-red-100 transition-all flex items-center justify-center gap-2"

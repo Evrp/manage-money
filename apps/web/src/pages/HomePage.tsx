@@ -137,9 +137,10 @@ const HomePage = () => {
       setShowManualForm(false);
       setOcrResult(null);
 
-      // Refresh summaries and transactions
+      // Refresh summaries, transactions and budgets
       queryClient.invalidateQueries({ queryKey: ["recent-transactions"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["budgets"] });
     } catch (error: any) {
       console.error("Submission failed:", error);
       alert(

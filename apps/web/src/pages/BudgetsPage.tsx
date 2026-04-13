@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import Layout from '../components/layout/Layout';
-import { Target, AlertCircle, Edit2, Calendar, X, Loader2, Save, Plus } from 'lucide-react';
+import { Target, AlertCircle, Edit2, Calendar, X, Loader2, Save, Plus, Receipt } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import CreateCategoryModal from '../components/ui/CreateCategoryModal';
@@ -67,13 +67,19 @@ const BudgetsPage = () => {
   });
 
   const totals = useMemo(() => {
-    if (!budgets) return { spent: 0, limit: 0, percent: 0 };
-    const spent = budgets.reduce((acc, b) => acc + b.spentAmount, 0);
-    // Only sum limits that are > 0 for the total limit
-    const limit = budgets.reduce((acc, b) => acc + (b.limitAmount || 0), 0);
-    const percent = limit > 0 ? (spent / limit) * 100 : 0;
-    return { spent, limit, percent };
+    if (!budgets) return { actualSpent: 0, budgetedSpent: 0, limit: 0, percent: 0 };
+    
+    const actualSpent = budgets.reduce((acc, b) => acc + b.spentAmount, 0);
+    const budgetedItems = budgets.filter(b => b.limitAmount > 0);
+    const budgetedSpent = budgetedItems.reduce((acc, b) => acc + b.spentAmount, 0);
+    const limit = budgetedItems.reduce((acc, b) => acc + b.limitAmount, 0);
+    const percent = limit > 0 ? (budgetedSpent / limit) * 100 : 0;
+    
+    return { actualSpent, budgetedSpent, limit, percent };
   }, [budgets]);
+
+  const budgetedBudgets = budgets?.filter(b => b.limitAmount > 0) || [];
+  const unbudgetedBudgets = budgets?.filter(b => b.limitAmount === 0) || [];
 
   const handleEditLimit = (budget: Budget) => {
     setEditingBudget(budget);
@@ -126,47 +132,48 @@ const BudgetsPage = () => {
           />
         )}
 
-        {/* Global Progress Card */}
-        <section className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-gray-50/50">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="font-bold text-gray-400 text-[10px] uppercase tracking-widest">การใช้จ่ายทั้งหมด (ที่มีงบ)</h2>
-            <span className="text-[10px] font-black bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-xl">
-              {dateObj.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}
-            </span>
+        {/* Summary Cards */}
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* 1. Actual Spending Card (All Expenses) */}
+          <div className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm relative overflow-hidden group">
+            <div className="relative z-10">
+              <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mb-2">รายจ่ายจริงทั้งหมดในเดือนนี้</p>
+              <h3 className="text-3xl font-black text-gray-800">฿{totals.actualSpent.toLocaleString()}</h3>
+            </div>
+            <div className="absolute -right-4 -bottom-4 text-gray-50 group-hover:text-indigo-50/50 transition-colors">
+              <Receipt size={120} />
+            </div>
           </div>
-          
-          {isLoading ? (
-            <div className="flex justify-center py-4"><Loader2 className="animate-spin text-indigo-300" /></div>
-          ) : (
-            <>
-              <div className="flex justify-between items-end mb-4">
-                <div>
-                  <div className="flex items-baseline gap-1.5">
-                    <p className="text-3xl font-black">฿{totals.spent.toLocaleString()}</p>
-                    {totals.limit > 0 && (
-                      <>
-                        <p className="text-gray-300 font-bold mb-1">/</p>
-                        <p className="text-gray-400 font-bold text-sm mb-1">฿{totals.limit.toLocaleString()}</p>
-                      </>
-                    )}
-                  </div>
-                  <p className="text-[10px] text-gray-400 mt-2 font-bold uppercase tracking-tight">
-                    {totals.limit > 0 
-                      ? `ใช้ไปแล้ว ${Math.round(totals.percent)}% ของงบที่มีเพดาน`
-                      : 'ยังไม่ได้กำหนดงบประมาณสำหรับเดือนนี้'}
-                  </p>
-                </div>
+
+          {/* 2. Budget Progress Card (Planned Expenses) */}
+          <div className="bg-indigo-600 p-6 rounded-[2.5rem] text-white shadow-xl shadow-indigo-100 relative overflow-hidden">
+            <div className="relative z-10">
+              <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest mb-2">การใช้จ่ายเปรียบเทียบกับงบ</p>
+              <div className="flex items-baseline gap-2 mb-4">
+                <span className="text-4xl font-black font-sans">฿{totals.budgetedSpent.toLocaleString()}</span>
+                {totals.limit > 0 && <span className="text-indigo-200 text-lg">/ ฿{totals.limit.toLocaleString()}</span>}
               </div>
-              {totals.limit > 0 && (
-                <div className="w-full h-4 bg-gray-100/50 rounded-full overflow-hidden p-1">
-                  <div 
-                    className={`h-full rounded-full transition-all duration-1000 ${totals.percent > 90 ? 'bg-red-500' : 'bg-gradient-to-r from-indigo-500 to-indigo-600'}`} 
-                    style={{ width: `${Math.min(totals.percent, 100)}%` }}
-                  ></div>
+              
+              <div className="space-y-2">
+                <div className="flex justify-between text-[10px] font-bold">
+                  <span>
+                    {totals.limit > 0 
+                      ? `ใช้ไปแล้ว ${Math.round(totals.percent)}% ของงบประมาณที่ตั้งไว้`
+                      : 'ยังไม่ได้ตั้งเป้าหมายงบประมาณ'}
+                  </span>
                 </div>
-              )}
-            </>
-          )}
+                {totals.limit > 0 && (
+                  <div className="h-3 bg-white/20 rounded-full overflow-hidden p-0.5">
+                    <div 
+                      className={`h-full rounded-full transition-all duration-1000 ${totals.percent > 90 ? 'bg-red-400' : 'bg-white'}`} 
+                      style={{ width: `${Math.min(totals.percent, 100)}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+            <Target className="absolute -right-4 -bottom-4 text-indigo-500/30" size={120} />
+          </div>
         </section>
 
         {/* Category Budgets */}
@@ -178,10 +185,14 @@ const BudgetsPage = () => {
           
           {isLoading ? (
             <div className="flex flex-col items-center py-20 opacity-30"><Loader2 className="animate-spin mb-2" /></div>
-          ) : budgets?.length === 0 ? (
-            <div className="text-center py-20 text-gray-400 text-sm">ไม่พบงบประมาณในเดือนนี้</div>
+          ) : budgetedBudgets.length === 0 ? (
+            <div className="text-center py-20 bg-gray-50 rounded-[2.5rem] border-2 border-dashed border-gray-100 text-gray-400 flex flex-col items-center gap-2">
+              <AlertCircle size={32} strokeWidth={1.5} />
+              <p className="font-bold">ยังไม่ได้ตั้งเป้าหมายหมวดหมู่</p>
+              <p className="text-xs">เลือกหมวดหมู่ด้านล่างเพื่อกำหนดงบประมาณ</p>
+            </div>
           ) : (
-            budgets?.map((b) => {
+            budgetedBudgets.map((b) => {
               const hasLimit = b.limitAmount > 0;
               const percent = hasLimit ? (b.spentAmount / b.limitAmount) * 100 : 0;
               const isDanger = hasLimit && percent >= 90;
@@ -214,15 +225,13 @@ const BudgetsPage = () => {
                     </div>
                   </div>
                   
-                  {hasLimit ? (
+                  {hasLimit && (
                     <div className="w-full h-2.5 bg-gray-50 rounded-full overflow-hidden">
                       <div 
                         className={`h-full rounded-full transition-all duration-1000 ${isDanger ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : 'bg-indigo-400'}`} 
                         style={{ width: `${Math.min(percent, 100)}%` }}
                       ></div>
                     </div>
-                  ) : (
-                    <div className="w-full h-1.5 bg-gray-50/50 rounded-full"></div>
                   )}
 
                   {isDanger && (
@@ -234,6 +243,30 @@ const BudgetsPage = () => {
                 </div>
               );
             })
+          )}
+
+          {/* Unbudgeted Categories */}
+          {unbudgetedBudgets.length > 0 && (
+            <div className="mt-8 pt-6 border-t border-gray-100">
+               <div className="flex justify-between items-center mb-4 px-2">
+                 <h3 className="font-bold text-sm text-gray-400 uppercase tracking-widest">หมวดหมู่ที่ยังไม่ได้ตั้งงบ</h3>
+                 <span className="text-[10px] font-bold text-gray-300">{unbudgetedBudgets.length} หมวดหมู่</span>
+               </div>
+               <div className="grid grid-cols-2 gap-3 pb-8">
+                  {unbudgetedBudgets.map((b) => (
+                    <button 
+                      key={b._id}
+                      onClick={() => handleEditLimit(b)}
+                      className="flex items-center justify-between p-4 bg-gray-50/50 border border-gray-100 rounded-2xl hover:bg-white hover:border-indigo-100 transition-all group"
+                    >
+                      <span className="text-xs font-bold text-gray-500 group-hover:text-indigo-600 transition-colors truncate">
+                        {b.categoryId?.name || 'อื่นๆ'}
+                      </span>
+                      <Edit2 size={12} className="text-gray-300 group-hover:text-indigo-400" />
+                    </button>
+                  ))}
+               </div>
+            </div>
           )}
         </div>
       </div>
