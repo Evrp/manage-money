@@ -6,26 +6,15 @@ import {
   TrendingDown,
   TrendingUp,
   Loader2,
-  ArrowUpRight,
   ArrowDownLeft,
+  Calendar as CalendarIcon,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import TransactionForm from "../components/ui/TransactionForm";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCategories } from "../hooks/useCategories";
-
-interface Transaction {
-  _id: string;
-  amount: number;
-  type: "income" | "expense";
-  description?: string;
-  date: string;
-  categoryId?: {
-    name: string;
-    icon: string;
-  };
-}
+import Calendar from "../components/ui/Calendar";
 
 const HomePage = () => {
   const navigate = useNavigate();
@@ -33,10 +22,14 @@ const HomePage = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [showManualForm, setShowManualForm] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string>(
+    new Date().toISOString().split("T")[0],
+  );
+  const [showCalendar, setShowCalendar] = useState(false);
 
-  const now = new Date();
-  const month = now.getMonth() + 1;
-  const year = now.getFullYear();
+  const dateObj = new Date(selectedDate);
+  const month = dateObj.getMonth() + 1;
+  const year = dateObj.getFullYear();
 
   // Fetch Summary
   const { data: summary, isLoading: isSummaryLoading } = useQuery({
@@ -89,7 +82,6 @@ const HomePage = () => {
   };
 
   const [ocrResult, setOcrResult] = useState<any>(null);
-  const [isOcrConfirming, setIsOcrConfirming] = useState(false);
 
   const handleFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -167,16 +159,22 @@ const HomePage = () => {
                     amount: ocrResult.extractedData.amount,
                     date:
                       ocrResult.extractedData.transactionDate ||
-                      new Date().toISOString().split("T")[0],
+                      new Date(
+                        new Date().getTime() -
+                          new Date().getTimezoneOffset() * 60000,
+                      )
+                        .toISOString()
+                        .split("T")[0],
                     note:
                       ocrResult.extractedData.toName ||
                       ocrResult.extractedData.toBank ||
                       "",
                     type:
                       ocrResult.extractedData.transactionType === "income"
-                         ? "income"
-                         : "expense",
-                    suggestedCategory: ocrResult.extractedData.suggestedCategory,
+                        ? "income"
+                        : "expense",
+                    suggestedCategory:
+                      ocrResult.extractedData.suggestedCategory,
                     slipImageUrl: ocrResult.imageUrl,
                   }
                 : null
@@ -200,6 +198,45 @@ const HomePage = () => {
               <p className="text-indigo-100 text-sm opacity-80">
                 ยอดคงเหลือเดือนนี้
               </p>
+              <div className="relative mt-2">
+                <button
+                  onClick={() => setShowCalendar(true)}
+                  className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-2xl flex items-center gap-2 border border-white/20 hover:bg-white/20 transition-all"
+                >
+                  <CalendarIcon size={16} />
+                  <span className="text-sm font-bold">
+                    {dateObj.toLocaleDateString("th-TH", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </span>
+                </button>
+
+                {showCalendar && (
+                  <div
+                    className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+                    onClick={() => setShowCalendar(false)}
+                  >
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <Calendar
+                        selectedDate={dateObj}
+                        onChange={(date) => {
+                          const dateStr =
+                            date.getFullYear() +
+                            "-" +
+                            String(date.getMonth() + 1).padStart(2, "0") +
+                            "-" +
+                            String(date.getDate()).padStart(2, "0");
+                          setShowCalendar(false);
+                          setSelectedDate(dateStr);
+                        }}
+                        onClose={() => setShowCalendar(false)}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
               {isSummaryLoading ? (
                 <div className="h-10 w-32 bg-white/10 animate-pulse rounded-lg mt-1" />
               ) : (
@@ -305,14 +342,19 @@ const HomePage = () => {
                   <div
                     className={`h-11 w-11 flex items-center justify-center rounded-2xl text-xl ${t.type === "income" ? "bg-emerald-50" : "bg-gray-50"}`}
                   >
-                    {t.categoryId?.icon || (t.type === "income" ? <ArrowDownLeft size={20} className="text-emerald-500" /> : <Receipt size={20} className="text-gray-400" />)}
+                    {t.categoryId?.icon ||
+                      (t.type === "income" ? (
+                        <ArrowDownLeft size={20} className="text-emerald-500" />
+                      ) : (
+                        <Receipt size={20} className="text-gray-400" />
+                      ))}
                   </div>
                   <div className="flex-1">
                     <p className="font-bold text-sm truncate">
                       {t.note || t.description || "ไม่มีคำอธิบาย"}
                     </p>
                     <div className="flex items-center gap-2">
-                       <p className="text-[10px] text-gray-400 font-medium">
+                      <p className="text-[10px] text-gray-400 font-medium">
                         {new Date(t.date).toLocaleDateString("th-TH", {
                           hour: "2-digit",
                           minute: "2-digit",
@@ -320,9 +362,9 @@ const HomePage = () => {
                       </p>
                       <span className="h-1 w-1 rounded-full bg-gray-200" />
                       <p className="text-[10px] text-indigo-500 font-bold">
-                        {typeof t.categoryId === "object" 
-                          ? t.categoryId?.name 
-                          : (t.categoryId || "อื่นๆ")}
+                        {typeof t.categoryId === "object"
+                          ? t.categoryId?.name
+                          : t.categoryId || "อื่นๆ"}
                       </p>
                     </div>
                   </div>

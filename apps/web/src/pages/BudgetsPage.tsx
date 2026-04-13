@@ -4,6 +4,7 @@ import { Target, AlertCircle, Edit2, Calendar, X, Loader2, Save, Plus, Receipt }
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import CreateCategoryModal from '../components/ui/CreateCategoryModal';
+import MonthYearPicker from '../components/ui/MonthYearPicker';
 
 interface Category {
   _id: string;
@@ -25,6 +26,7 @@ const BudgetsPage = () => {
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newLimit, setNewLimit] = useState<string>('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const dateObj = new Date(selectedDate);
   const month = dateObj.getMonth() + 1;
@@ -111,15 +113,30 @@ const BudgetsPage = () => {
               <Plus size={20} />
             </button>
             <div className="relative">
-              <button className="bg-white p-2.5 rounded-2xl border border-gray-100 shadow-sm text-gray-400">
+              <button 
+                onClick={() => setShowDatePicker(true)}
+                className="bg-white p-2.5 rounded-2xl border border-gray-100 shadow-sm text-gray-400 hover:text-indigo-600 hover:border-indigo-100 transition-all"
+              >
                 <Calendar size={20} />
               </button>
-              <input 
-                type="date" 
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="opacity-0 absolute inset-0 w-full h-full cursor-pointer z-10"
-              />
+              
+              {showDatePicker && (
+                <div 
+                  className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+                  onClick={() => setShowDatePicker(false)}
+                >
+                  <div onClick={e => e.stopPropagation()}>
+                    <MonthYearPicker 
+                      selectedDate={dateObj}
+                      onChange={(date) => {
+                        const dateStr = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+                        setSelectedDate(dateStr);
+                      }}
+                      onClose={() => setShowDatePicker(false)}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </header>
