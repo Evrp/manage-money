@@ -1,28 +1,25 @@
 {
-  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "module": "NodeNext",
-    "declaration": true,
-    "removeComments": true,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "allowSyntheticDefaultImports": true,
-    "target": "ES2022",
+    "moduleResolution": "NodeNext",
+    "target": "ES2021",
     "sourceMap": true,
-    "outDir": "dist",
-    "baseUrl": "./",
+    "declaration": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "strict": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": false,
+    "noImplicitAny": false,
+    "strictBindCallApply": false,
+    "noFallthroughCasesInSwitch": false,
+    "useDefineForClassFields": false,
+    "baseUrl": ".",
     "paths": {
       "@moneyflow/shared": ["../../packages/shared/src/index.ts"],
       "@moneyflow/shared/*": ["../../packages/shared/src/*"]
-    },
-    "incremental": true,
-    "skipLibCheck": true,
-    "strictNullChecks": false,
-    "noImplicitAny": false,
-    "strictBindCallApply": false,
-    "forceConsistentCasingInFileNames": false,
-    "noFallthroughCasesInSwitch": false,
-    "useDefineForClassFields": false
+    }
   },
-  "include": ["src", "../../packages/*/src"]
+  "include": ["src", "../../packages/shared/src"]
 }
