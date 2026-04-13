@@ -17,7 +17,11 @@ export const createApp = async (expressInstance: any) => {
       transformOptions: { enableImplicitConversion: true },
     }),
   );
-  app.enableCors();
+  app.enableCors({
+    origin: process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',') : true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+  });
   await app.init();
   return app;
 };
