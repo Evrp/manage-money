@@ -18,41 +18,27 @@ export class SlipsService {
   ) {}
 
   async processUpload(userId: string, file: Express.Multer.File) {
-    const session = await this.slipUploadModel.db.startSession();
-    session.startTransaction();
-
     try {
-      // 1. Upload to storage (Done outside DB transaction usually, but we keep its metadata inside)
+      // 1. Process image and Upload to storage (EXTERNAL CALL - Done first)
       const { imageUrl, processedBuffer } = await this.uploadToStorage(
         userId,
         file,
       );
 
-      // 2. Create record with session
-      const [slipUpload] = await this.slipUploadModel.create(
-        [
-          {
-            userId,
-            imageUrl,
-            status: SlipUploadStatus.PROCESSING,
-          },
-        ],
-        { session },
-      );
-
-      // 3. OCR with Google Gemini API
+      // 2. OCR with Google Gemini API (EXTERNAL CALL - Do before DB work)
       const extractedData = await this.extractWithGemini(
         processedBuffer.toString("base64"),
         "image/webp",
       );
 
-      // 4. Update and Commit
-      slipUpload.extractedData = extractedData;
-      slipUpload.status = SlipUploadStatus.SUCCESS;
-      slipUpload.processedAt = new Date();
-      await slipUpload.save({ session });
-
-      await session.commitTransaction();
+      // 3. Save to Database (Single operation, No long transaction needed)
+      const slipUpload = await this.slipUploadModel.create({
+        userId,
+        imageUrl,
+        extractedData,
+        status: SlipUploadStatus.SUCCESS,
+        processedAt: new Date(),
+      });
 
       return {
         id: slipUpload._id,
@@ -60,13 +46,10 @@ export class SlipsService {
         extractedData,
       };
     } catch (error: any) {
-      await session.abortTransaction();
       console.error("OCR Processing Error:", error);
       throw new BadRequestException(
         error.message || "Failed to process slip OCR with Gemini",
       );
-    } finally {
-      session.endSession();
     }
   }
 

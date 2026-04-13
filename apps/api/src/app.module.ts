@@ -18,9 +18,10 @@ import { FirebaseModule } from "./modules/firebase/firebase.module";
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    MongooseModule.forRoot(
-      process.env.MONGODB_URI || "mongodb://localhost/moneyflow",
-    ),
+    MongooseModule.forRoot(process.env.MONGODB_URI as string, {
+      serverSelectionTimeoutMS: 10000, // รอ 10 วิ ถ้าเลือก Server ไม่ได้
+      connectTimeoutMS: 10000, // รอ 10 วิ ตอนต่อครั้งแรก
+    }),
     FirebaseModule,
     AuthModule,
     CategoriesModule,
