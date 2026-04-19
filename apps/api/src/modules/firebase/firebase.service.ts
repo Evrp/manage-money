@@ -89,6 +89,30 @@ export class FirebaseService implements OnModuleInit {
     return url;
   }
 
+  extractPathFromUrl(urlOrPath: string): string | null {
+    if (!urlOrPath) return null;
+
+    // If it's already a path (doesn't start with http), return it
+    if (!urlOrPath.startsWith("http")) return urlOrPath;
+
+    const bucketName = this.getBucket().name;
+    let filePath: string | null = null;
+
+    if (urlOrPath.includes("storage.googleapis.com")) {
+      const parts = urlOrPath.split(`${bucketName}/`);
+      if (parts.length > 1) {
+        filePath = decodeURIComponent(parts[1].split("?")[0]);
+      }
+    } else if (urlOrPath.includes("firebasestorage.googleapis.com")) {
+      const parts = urlOrPath.split("/o/");
+      if (parts.length > 1) {
+        filePath = decodeURIComponent(parts[1].split("?")[0]);
+      }
+    }
+
+    return filePath;
+  }
+
   /**
    * Deletes a file from storage given its URL
    * @param url The public or signed URL of the file
@@ -97,26 +121,10 @@ export class FirebaseService implements OnModuleInit {
     if (!url) return;
 
     try {
-      const bucket = this.getBucket();
-      let filePath: string | null = null;
-
-      // Logic to extract path from Firebase/GCS URLs
-      if (url.includes("storage.googleapis.com")) {
-        // Handle format: https://storage.googleapis.com/bucket/path/to/file or signed variants
-        const bucketName = bucket.name;
-        const parts = url.split(`${bucketName}/`);
-        if (parts.length > 1) {
-          filePath = decodeURIComponent(parts[1].split("?")[0]);
-        }
-      } else if (url.includes("firebasestorage.googleapis.com")) {
-        // Handle format: https://firebasestorage.googleapis.com/v0/b/bucket/o/path%2Fto%2Ffile?alt=media...
-        const parts = url.split("/o/");
-        if (parts.length > 1) {
-          filePath = decodeURIComponent(parts[1].split("?")[0]);
-        }
-      }
+      const filePath = this.extractPathFromUrl(url);
 
       if (filePath) {
+        const bucket = this.getBucket();
         const file = bucket.file(filePath);
         const [exists] = await file.exists();
         if (exists) {
@@ -125,8 +133,6 @@ export class FirebaseService implements OnModuleInit {
         }
       }
     } catch (error) {
-      // We don't want to fail the whole delete operation if storage delete fails,
-      // but we should log it.
       console.error("Failed to delete file from Firebase Storage:", error);
     }
   }

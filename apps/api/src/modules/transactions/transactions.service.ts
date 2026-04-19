@@ -53,13 +53,23 @@ export class TransactionsService {
       this.transactionModel.countDocuments(filter),
     ]);
 
-    return { data, total, page, limit, order };
+    const refreshedData = await this.refreshSlipUrls(data);
+    return { data: refreshedData, total, page, limit, order };
   }
 
   async create(userId: string, createTransactionDto: CreateTransactionDto) {
     const date = new Date(createTransactionDto.date);
+
+    // Extract path from imageUrl if it is a full URL
+    let slipImageUrl = createTransactionDto.slipImageUrl;
+    if (slipImageUrl) {
+      const path = this.firebaseService.extractPathFromUrl(slipImageUrl);
+      if (path) slipImageUrl = path;
+    }
+
     const transaction = new this.transactionModel({
       ...createTransactionDto,
+      slipImageUrl,
       userId: new Types.ObjectId(userId),
       categoryId: new Types.ObjectId(createTransactionDto.categoryId),
       date,
@@ -83,7 +93,8 @@ export class TransactionsService {
       );
     }
 
-    return populated;
+    const [refreshed] = await this.refreshSlipUrls([populated]);
+    return refreshed;
   }
 
   async remove(userId: string, id: string) {
@@ -156,6 +167,15 @@ export class TransactionsService {
     if (updateData.categoryId) {
       updateData.categoryId = new Types.ObjectId(updateData.categoryId);
     }
+
+    // Extract path from imageUrl if it is a full URL
+    if (updateData.slipImageUrl) {
+      const path = this.firebaseService.extractPathFromUrl(
+        updateData.slipImageUrl,
+      );
+      if (path) updateData.slipImageUrl = path;
+    }
+
     const newTransaction = await this.transactionModel.findOneAndUpdate(
       { _id: id, userId: new Types.ObjectId(userId) },
       { $set: updateData },
@@ -181,7 +201,34 @@ export class TransactionsService {
       );
     }
 
+    if (newTransaction) {
+      const [refreshed] = await this.refreshSlipUrls([newTransaction]);
+      return refreshed;
+    }
+
     return newTransaction;
+  }
+
+  private async refreshSlipUrls(transactions: any[]) {
+    return Promise.all(
+      transactions.map(async (t) => {
+        const doc = t.toObject ? t.toObject() : t;
+        if (doc.slipImageUrl) {
+          const filePath = this.firebaseService.extractPathFromUrl(
+            doc.slipImageUrl,
+          );
+          if (filePath) {
+            try {
+              doc.slipImageUrl =
+                await this.firebaseService.getSignedUrl(filePath);
+            } catch (e) {
+              console.error("Failed to refresh slip URL", e);
+            }
+          }
+        }
+        return doc;
+      }),
+    );
   }
 
   async getSummary(userId: string, month: number, year: number) {

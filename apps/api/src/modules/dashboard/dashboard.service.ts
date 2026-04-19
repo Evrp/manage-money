@@ -133,7 +133,7 @@ export class DashboardService {
     const userObjectId = new Types.ObjectId(userId);
     // Explicitly set the filter type to ensure no leakage
     const reqType = transactionType === "income" ? "income" : "expense";
-    console.log("reqType", reqType);
+
     const results = await this.transactionModel.aggregate([
       {
         $match: {
@@ -179,7 +179,6 @@ export class DashboardService {
       },
       { $sort: { value: -1 } },
     ]);
-    console.log("results", results);
 
     return {
       debug: {

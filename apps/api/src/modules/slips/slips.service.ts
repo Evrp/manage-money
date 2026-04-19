@@ -20,10 +20,8 @@ export class SlipsService {
   async processUpload(userId: string, file: Express.Multer.File) {
     try {
       // 1. Process image and Upload to storage (EXTERNAL CALL - Done first)
-      const { imageUrl, processedBuffer } = await this.uploadToStorage(
-        userId,
-        file,
-      );
+      const { fileName, imageUrl, processedBuffer } =
+        await this.uploadToStorage(userId, file);
 
       // 2. OCR with Google Gemini API (EXTERNAL CALL - Do before DB work)
       const extractedData = await this.extractWithGemini(
@@ -31,10 +29,10 @@ export class SlipsService {
         "image/webp",
       );
 
-      // 3. Save to Database (Single operation, No long transaction needed)
+      // 3. Save to Database (Save path, not full signed URL)
       const slipUpload = await this.slipUploadModel.create({
         userId,
-        imageUrl,
+        imageUrl: fileName,
         extractedData,
         status: SlipUploadStatus.SUCCESS,
         processedAt: new Date(),
@@ -42,7 +40,7 @@ export class SlipsService {
 
       return {
         id: slipUpload._id,
-        imageUrl,
+        imageUrl, // Still return signed URL for immediate display
         extractedData,
       };
     } catch (error: any) {
