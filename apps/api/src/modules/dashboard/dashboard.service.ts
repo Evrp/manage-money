@@ -124,15 +124,23 @@ export class DashboardService {
     return months;
   }
 
-  async getCategoryBreakdown(userId: string, month: number, year: number) {
+  async getCategoryBreakdown(
+    userId: string,
+    month: number,
+    year: number,
+    transactionType: string,
+  ) {
     const userObjectId = new Types.ObjectId(userId);
-    return this.transactionModel.aggregate([
+    // Explicitly set the filter type to ensure no leakage
+    const reqType = transactionType === "income" ? "income" : "expense";
+    console.log("reqType", reqType);
+    const results = await this.transactionModel.aggregate([
       {
         $match: {
           userId: { $in: [userId, userObjectId] },
           month: Number(month),
           year: Number(year),
-          type: "expense",
+          type: reqType,
         },
       },
       {
@@ -169,6 +177,17 @@ export class DashboardService {
           icon: "$category.icon",
         },
       },
+      { $sort: { value: -1 } },
     ]);
+    console.log("results", results);
+
+    return {
+      debug: {
+        receivedType: transactionType,
+        determinedType: reqType,
+        userId,
+      },
+      data: results,
+    };
   }
 }

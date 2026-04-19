@@ -16,7 +16,15 @@ export class TransactionsService {
   ) {}
 
   async findAll(userId: string, query: QueryTransactionDto) {
-    const { month, year, categoryId, type, page = 1, limit = 20 } = query;
+    const {
+      month,
+      year,
+      categoryId,
+      type,
+      page = 1,
+      limit = 20,
+      order = "desc",
+    } = query;
     const userObjectId = new Types.ObjectId(userId);
     const filter: any = {
       userId: { $in: [userId, userObjectId] },
@@ -32,18 +40,20 @@ export class TransactionsService {
     if (type) filter.type = type;
 
     const skip = (page - 1) * limit;
+    const sortOrder = order === "asc" ? 1 : -1;
+
     const [data, total] = await Promise.all([
       this.transactionModel
         .find(filter)
         .populate("categoryId") // Populate the full category object
-        .sort({ date: -1, createdAt: -1 })
+        .sort({ date: sortOrder, createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .exec(),
       this.transactionModel.countDocuments(filter),
     ]);
 
-    return { data, total, page, limit };
+    return { data, total, page, limit, order };
   }
 
   async create(userId: string, createTransactionDto: CreateTransactionDto) {

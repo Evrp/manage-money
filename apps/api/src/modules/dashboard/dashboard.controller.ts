@@ -30,11 +30,15 @@ export class DashboardController {
     @Request() req,
     @Query("month") month: number,
     @Query("year") year: number,
+    @Query("type") type?: string,
+    @Query("targetType") targetType?: string,
   ) {
+    const finalType = type || targetType;
     return this.dashboardService.getCategoryBreakdown(
       req.user.userId,
       Number(month),
       Number(year),
+      finalType,
     );
   }
 }

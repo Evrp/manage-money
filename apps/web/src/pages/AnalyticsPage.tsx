@@ -7,6 +7,8 @@ import {
   Target,
   Loader2,
   Calendar as CalendarIcon,
+  ArrowRight,
+  PieChart,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import api from "../services/api";
@@ -14,6 +16,7 @@ import api from "../services/api";
 const AnalyticsPage: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [activeType, setActiveType] = useState<"expense" | "income">("expense");
 
   // Fetch Summary (Saving Rate, etc.)
   const { data: summary, isLoading: isSummaryLoading } = useQuery({
@@ -38,24 +41,35 @@ const AnalyticsPage: React.FC = () => {
   });
 
   // Fetch Category Breakdown
-  const { data: breakdown, isLoading: isBreakdownLoading } = useQuery({
-    queryKey: ["dashboard-breakdown", selectedMonth, selectedYear],
+  const { data: responseData, isLoading: isBreakdownLoading } = useQuery({
+    queryKey: ["dashboard-breakdown", selectedMonth, selectedYear, activeType],
     queryFn: async () => {
       const { data } = await api.get("/dashboard/chart/category", {
-        params: { month: selectedMonth, year: selectedYear },
+        params: { 
+          month: selectedMonth, 
+          year: selectedYear, 
+          type: activeType // Back to 'type' as targetType might not be on server yet
+        },
       });
       return data;
     },
   });
 
+  // Extremely robust extraction
+  const breakdown = responseData?.data 
+    ? responseData.data 
+    : (Array.isArray(responseData) ? responseData : []);
+  
+  const debug = responseData?.debug;
+
   const isLoading = isSummaryLoading || isTrendsLoading || isBreakdownLoading;
 
-  // Calculate top expense for scaling progress bars
-  const maxExpense = Array.isArray(breakdown) ? Math.max(...breakdown.map((b: any) => b.value), 0) : 0;
+  // Calculate highest value in breakdown for proper scaling
+  const maxVal = Array.isArray(breakdown) ? Math.max(...breakdown.map((b: any) => b.value), 0) : 1;
 
   return (
     <Layout>
-      <div className="pb-24 px-4 pt-4 space-y-6">
+      <div className="pb-24 px-4 pt-6 space-y-8 max-w-2xl mx-auto">
         {/* Header with Picker */}
         <div className="flex justify-between items-center px-2">
           <h1 className="text-2xl font-black text-gray-900">วิเคราะห์ผล</h1>
@@ -97,7 +111,7 @@ const AnalyticsPage: React.FC = () => {
                 {summary?.savingRate > 0 ? (
                   <div className="flex items-center text-[10px] font-bold bg-emerald-400/30 text-emerald-100 px-2.5 py-1 rounded-full backdrop-blur-md">
                     <ArrowUpRight size={12} className="mr-0.5" />
-                    +12% ยอดเยี่ยม
+                    +ยอดเยี่ยม
                   </div>
                 ) : (
                   <div className="flex items-center text-[10px] font-bold bg-red-400/30 text-red-100 px-2.5 py-1 rounded-full backdrop-blur-md">
@@ -114,62 +128,102 @@ const AnalyticsPage: React.FC = () => {
             </p>
           </div>
 
-          {/* Abstract background shapes */}
           <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-all duration-700" />
           <div className="absolute bottom-[-20%] left-[-10%] w-48 h-48 bg-indigo-400/20 rounded-full blur-2xl group-hover:bg-indigo-400/30 transition-all duration-700" />
         </div>
 
-        {/* Expense Trends */}
-        <section className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm">
-          <div className="flex justify-between items-center mb-8">
-            <div className="space-y-1">
-              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest">เทรนด์รายจ่าย</h3>
-            </div>
-            <div className="p-2 bg-gray-50 rounded-xl">
-              <TrendingUp size={18} className="text-indigo-500" />
+        {/* Cashflow Summary Card */}
+        <section className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden relative group">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest">เส้นทางเงิน (CASH FLOW)</h3>
+            <div className="p-2 bg-indigo-50 rounded-xl">
+              <TrendingUp size={18} className="text-indigo-600" />
             </div>
           </div>
 
-          <div className="h-48 flex items-end justify-between gap-1 px-1">
-            {isLoading ? (
+          <div className="flex items-center gap-4 relative">
+             <div className="flex-1 text-center p-4 bg-emerald-50 rounded-3xl border border-emerald-100">
+                <p className="text-[10px] font-black text-emerald-600 uppercase mb-1">IN FLOW</p>
+                <p className="text-lg font-black text-emerald-700">฿{summary?.totalIncome?.toLocaleString() || 0}</p>
+             </div>
+             
+             <div className="flex flex-col items-center gap-1">
+                <div className="w-8 h-8 rounded-full bg-gray-900 flex items-center justify-center text-white shadow-lg">
+                  <ArrowRight size={16} />
+                </div>
+                <span className="text-[10px] font-black text-gray-400">
+                  {summary?.totalIncome > 0 ? Math.floor((summary.totalExpense / summary.totalIncome) * 100) : 0}%
+                </span>
+             </div>
+
+             <div className="flex-1 text-center p-4 bg-red-50 rounded-3xl border border-red-100">
+                <p className="text-[10px] font-black text-red-600 uppercase mb-1">OUT FLOW</p>
+                <p className="text-lg font-black text-red-700">฿{summary?.totalExpense?.toLocaleString() || 0}</p>
+             </div>
+          </div>
+        </section>
+
+        {/* Monthly Trends - Comparative */}
+        <section className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm">
+          <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-8">เปรียบเทียบรายเดือน</h3>
+          
+          <div className="h-48 flex items-end justify-between gap-2 px-1">
+            {isTrendsLoading ? (
               <div className="w-full h-full flex items-center justify-center">
                 <Loader2 className="animate-spin text-gray-200" size={32} />
               </div>
             ) : Array.isArray(trends) ? (
               trends.map((data: any) => {
-                const maxExp = Math.max(...trends.map((t: any) => t.expense), 1);
-                const height = data.expense > 0 ? (data.expense / maxExp) * 100 : 0;
+                const maxVal = Math.max(...trends.flatMap((t: any) => [t.income, t.expense]), 1);
                 const isCurrent = data.month === selectedMonth;
                 
                 return (
-                  <div key={data.month} className="flex-1 flex flex-col items-center gap-3 group">
-                    <div className="w-full relative flex flex-col items-center justify-end h-32">
-                      {/* Tooltip on hover */}
-                      <div className="absolute -top-8 px-2 py-1 bg-gray-900 text-white text-[10px] font-bold rounded opacity-0 group-hover:opacity-100 transition-opacity z-10 whitespace-nowrap pointer-events-none">
-                        ฿{data.expense.toLocaleString()}
-                      </div>
+                  <div key={data.month} className="flex-1 flex flex-col items-center gap-2 group">
+                    <div className="w-full relative flex items-end justify-center gap-[2px] h-32">
                       <div 
-                        className={`w-full max-w-[12px] rounded-full transition-all duration-700 ${isCurrent ? 'bg-indigo-600 shadow-md shadow-indigo-100' : 'bg-gray-100 group-hover:bg-indigo-300'}`}
-                        style={{ height: `${Math.max(height, 5)}%` }}
+                        className={`w-1.5 rounded-full transition-all duration-700 ${isCurrent ? 'bg-emerald-500 shadow-sm' : 'bg-emerald-100 group-hover:bg-emerald-300'}`}
+                        style={{ height: `${(data.income / maxVal) * 100}%`, minHeight: data.income > 0 ? '4px' : '0px' }}
                       />
+                      <div 
+                        className={`w-1.5 rounded-full transition-all duration-700 ${isCurrent ? 'bg-red-500 shadow-sm' : 'bg-red-100 group-hover:bg-red-300'}`}
+                        style={{ height: `${(data.expense / maxVal) * 100}%`, minHeight: data.expense > 0 ? '4px' : '0px' }}
+                      />
+                      
+                      <div className="absolute -top-12 px-2 py-1 bg-gray-900 text-white text-[8px] font-bold rounded opacity-0 group-hover:opacity-100 transition-opacity z-10 whitespace-nowrap pointer-events-none shadow-xl border border-white/10">
+                        In: ฿{data.income.toLocaleString()}<br/>
+                        Out: ฿{data.expense.toLocaleString()}
+                      </div>
                     </div>
-                    <span className={`text-[10px] font-bold ${isCurrent ? 'text-indigo-600' : 'text-gray-300'}`}>
+                    <span className={`text-[9px] font-black ${isCurrent ? 'text-indigo-600' : 'text-gray-300'}`}>
                       {new Date(0, data.month - 1).toLocaleString('th-TH', { month: 'short' })}
                     </span>
                   </div>
                 )
               })
-            ) : (
-                <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-gray-300">
-                    ไม่มีข้อมูลเทรนด์
-                </div>
-            )}
+            ) : null}
           </div>
         </section>
 
         {/* Category Breakdown */}
         <section className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm">
-          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-8">แบ่งตามหมวดหมู่</h3>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+            <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest">แบ่งตามหมวดหมู่ (100%)</h3>
+            
+            <div className="flex p-1 bg-gray-100 rounded-2xl w-full sm:w-auto">
+               <button 
+                onClick={() => setActiveType("expense")}
+                className={`flex-1 sm:flex-none px-6 py-2 rounded-xl text-xs font-black transition-all ${activeType === 'expense' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-400'}`}
+               >
+                 รายจ่าย
+               </button>
+               <button 
+                onClick={() => setActiveType("income")}
+                className={`flex-1 sm:flex-none px-6 py-2 rounded-xl text-xs font-black transition-all ${activeType === 'income' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-400'}`}
+               >
+                 รายรับ
+               </button>
+            </div>
+          </div>
 
           <div className="space-y-8">
             {isLoading ? (
@@ -183,35 +237,40 @@ const AnalyticsPage: React.FC = () => {
                 </div>
               ))
             ) : Array.isArray(breakdown) && breakdown.length > 0 ? (
-              breakdown.slice(0, 5).map((item: any, idx: number) => {
-                const percentage = (item.value / maxExpense) * 100;
+              breakdown.map((item: any, idx: number) => {
+                const totalBase = activeType === 'expense' ? summary?.totalExpense : summary?.totalIncome;
+                const percentageOfTotal = totalBase > 0 ? Math.floor((item.value / totalBase) * 100) : 0;
+                const scalePercentage = (item.value / maxVal) * 100;
+                const barColor = activeType === 'expense' ? (item.color || '#ef4444') : (item.color || '#10b981');
                 
                 return (
                   <div key={idx} className="group cursor-pointer">
                     <div className="flex justify-between items-center mb-3">
-                      <div className="flex items-center gap-3">
-                        <div 
-                          className="w-2 h-8 rounded-full transition-all group-hover:w-3"
-                          style={{ backgroundColor: item.color || '#6366f1' }}
-                        />
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                          {item.icon || "📦"}
+                        </div>
                         <div className="flex flex-col">
-                          <span className="text-sm font-bold text-gray-800">{item.name}</span>
-                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
-                            {Math.floor((item.value / summary.totalExpense) * 100)}% ของจ่ายทั้งหมด
+                          <span className="text-sm font-black text-gray-800">{item.name}</span>
+                          <span className={`text-[10px] font-black uppercase tracking-tighter ${activeType === 'income' ? 'text-emerald-500' : 'text-red-400'}`}>
+                            {percentageOfTotal}% ของ{activeType === 'income' ? 'รายรับ' : 'รายจ่าย'}ทั้งหมด
                           </span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-col items-end">
                         <span className="text-sm font-black text-gray-900 tracking-tight">฿{item.value.toLocaleString()}</span>
-                        <ChevronRight size={16} className="text-gray-200 group-hover:text-indigo-300 transition-colors" />
+                        <div className="flex items-center gap-1">
+                           <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: barColor }} />
+                           <span className="text-[10px] font-bold text-gray-300">Share</span>
+                        </div>
                       </div>
                     </div>
-                    <div className="h-1.5 w-full bg-gray-50 rounded-full overflow-hidden">
+                    <div className="h-2.5 w-full bg-gray-50 rounded-full overflow-hidden border border-gray-100/50">
                       <div 
-                        className="h-full rounded-full transition-all duration-1000 ease-out"
+                        className="h-full rounded-full transition-all duration-1000 ease-out shadow-sm"
                         style={{ 
-                          width: `${percentage}%`,
-                          backgroundColor: item.color || '#6366f1'
+                          width: `${scalePercentage}%`,
+                          backgroundColor: barColor
                         }}
                       />
                     </div>
@@ -221,9 +280,9 @@ const AnalyticsPage: React.FC = () => {
             ) : (
               <div className="py-12 text-center">
                 <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-dashed border-gray-200">
-                  <Target size={24} className="text-gray-200" />
+                  <PieChart size={24} className="text-gray-200" />
                 </div>
-                <p className="text-xs font-bold text-gray-400">ยังไม่มีข้อมูลในเดือนนี้</p>
+                <p className="text-xs font-bold text-gray-400">ยังไม่มีข้อมูลในส่วนนี้</p>
               </div>
             )}
           </div>

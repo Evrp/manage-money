@@ -7,6 +7,8 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   X,
+  ArrowUpNarrowWide,
+  ArrowDownWideNarrow,
   Loader2,
   Trash2,
   RotateCcw,
@@ -50,6 +52,7 @@ const TransactionsPage = () => {
   const [selectedTransaction, setSelectedTransaction] =
     useState<Transaction | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [order, setOrder] = useState<"asc" | "desc">("desc");
 
   // Fetch transactions
   const dateObj = new Date(selectedDate);
@@ -59,11 +62,12 @@ const TransactionsPage = () => {
       activeTab,
       dateObj.getMonth() + 1,
       dateObj.getFullYear(),
+      order,
     ],
     queryFn: async () => {
       const typeParam = activeTab === "all" ? "" : `&type=${activeTab}`;
       const { data } = await api.get(
-        `/transactions?month=${dateObj.getMonth() + 1}&year=${dateObj.getFullYear()}${typeParam}&limit=100`,
+        `/transactions?month=${dateObj.getMonth() + 1}&year=${dateObj.getFullYear()}${typeParam}&limit=100&order=${order}`,
       );
       return data;
     },
@@ -300,6 +304,17 @@ const TransactionsPage = () => {
               </div>
             )}
           </div>
+          <button
+            onClick={() => setOrder(order === "desc" ? "asc" : "desc")}
+            className={`px-4 rounded-2xl border shadow-sm transition-all h-full bg-white border-gray-100 text-gray-400 hover:text-indigo-600 hover:border-indigo-100 flex items-center justify-center`}
+            title={order === "desc" ? "เรียงจากใหม่ไปเก่า" : "เรียงจากเก่าไปใหม่"}
+          >
+            {order === "desc" ? (
+              <ArrowDownWideNarrow size={20} />
+            ) : (
+              <ArrowUpNarrowWide size={20} />
+            )}
+          </button>
         </div>
 
         {/* Tabs */}

@@ -35,4 +35,8 @@ export class QueryTransactionDto {
   @Min(1)
   @Max(100)
   limit?: number = 20;
+
+  @IsOptional()
+  @IsEnum(["asc", "desc"])
+  order?: "asc" | "desc" = "desc";
 }
