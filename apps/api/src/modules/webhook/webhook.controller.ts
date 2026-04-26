@@ -23,19 +23,31 @@ export class WebhookController {
     const channelSecret = process.env.LINE_CHANNEL_SECRET;
 
     if (!channelSecret) {
-      console.warn("LINE_CHANNEL_SECRET is not set in environment variables");
+      console.warn("LINE_CHANNEL_SECRET is not set");
       return { success: true };
     }
 
-    // Use the raw body captured in main.ts
-    const rawBody = req.rawBody || JSON.stringify(body);
+    // Use captured rawBody from main.ts
+    const rawBody = req.rawBody;
 
-    if (!this.verifySignature(rawBody, signature, channelSecret)) {
-      console.error("LINE Signature verification failed");
-      // If it's a test/verify request (no events), return 200 to keep the webhook active
-      if (events.length === 0) return { success: true };
+    if (!rawBody) {
+      console.warn(
+        "rawBody is missing from request. Falling back to JSON.stringify",
+      );
+      const fallbackBody = JSON.stringify(body);
+      if (!this.verifySignature(fallbackBody, signature, channelSecret)) {
+        if (events.length === 0) return { success: true };
+        console.error("Signature verification failed with fallback body");
+        throw new BadRequestException("Invalid signature");
+      }
+    } else {
+      if (!this.verifySignature(rawBody, signature, channelSecret)) {
+        console.error("Signature verification failed even with rawBody");
+        console.error("Body length:", rawBody.length);
 
-      throw new BadRequestException("Invalid signature");
+        if (events.length === 0) return { success: true };
+        throw new BadRequestException("Invalid signature");
+      }
     }
 
     for (const event of events) {

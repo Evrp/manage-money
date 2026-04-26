@@ -17,7 +17,7 @@ export const createApp = async (expressInstance: any) => {
   app.use(
     express.json({
       verify: (req: any, res, buf) => {
-        if (req.url.includes("webhook")) {
+        if (buf && buf.length) {
           req.rawBody = buf.toString();
         }
       },
