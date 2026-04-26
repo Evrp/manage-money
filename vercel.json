@@ -24,7 +24,7 @@
       "destination": "/api/index.ts"
     },
     {
-      "source": "/(slips|budgets|notifications|dashboard|user|analysis)(/.*)?",
+      "source": "/(slips|budgets|notifications|dashboard|user|analysis|webhook)(/.*)?",
       "destination": "/api/index.ts"
     },
     {
