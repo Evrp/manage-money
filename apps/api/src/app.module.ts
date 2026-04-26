@@ -12,6 +12,7 @@ import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { WebhookModule } from "./modules/webhook/webhook.module";
 import { FirebaseModule } from "./modules/firebase/firebase.module";
+import { AdvisorModule } from "./modules/advisor/advisor.module";
 
 @Module({
   imports: [
@@ -19,8 +20,8 @@ import { FirebaseModule } from "./modules/firebase/firebase.module";
       isGlobal: true,
     }),
     MongooseModule.forRoot(process.env.MONGODB_URI as string, {
-      serverSelectionTimeoutMS: 10000, // รอ 10 วิ ถ้าเลือก Server ไม่ได้
-      connectTimeoutMS: 10000, // รอ 10 วิ ตอนต่อครั้งแรก
+      serverSelectionTimeoutMS: 10000,
+      connectTimeoutMS: 10000,
     }),
     FirebaseModule,
     AuthModule,
@@ -31,6 +32,7 @@ import { FirebaseModule } from "./modules/firebase/firebase.module";
     DashboardModule,
     NotificationsModule,
     WebhookModule,
+    AdvisorModule,
   ],
   controllers: [AppController],
   providers: [AppService],
