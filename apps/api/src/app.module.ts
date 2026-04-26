@@ -13,6 +13,7 @@ import { NotificationsModule } from "./modules/notifications/notifications.modul
 import { WebhookModule } from "./modules/webhook/webhook.module";
 import { FirebaseModule } from "./modules/firebase/firebase.module";
 import { AdvisorModule } from "./modules/advisor/advisor.module";
+import { GeminiModule } from "./modules/gemini/gemini.module";
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { AdvisorModule } from "./modules/advisor/advisor.module";
     NotificationsModule,
     WebhookModule,
     AdvisorModule,
+    GeminiModule,
   ],
   controllers: [AppController],
   providers: [AppService],

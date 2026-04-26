@@ -1,13 +1,13 @@
 import { Injectable, BadRequestException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
-import axios from "axios";
 import { SlipUpload } from "../../schemas/slip-upload.schema";
 import { TransactionsService } from "../transactions/transactions.service";
 import { CreateTransactionDto } from "../transactions/dto/create-transaction.dto";
 import { SlipUploadStatus } from "@moneyflow/shared";
 import sharp from "sharp";
 import { FirebaseService } from "../firebase/firebase.service";
+import { GeminiService } from "../gemini/gemini.service";
 
 @Injectable()
 export class SlipsService {
@@ -15,6 +15,7 @@ export class SlipsService {
     @InjectModel(SlipUpload.name) private slipUploadModel: Model<SlipUpload>,
     private readonly transactionsService: TransactionsService,
     private readonly firebaseService: FirebaseService,
+    private readonly geminiService: GeminiService,
   ) {}
 
   async processUpload(userId: string, file: Express.Multer.File) {
@@ -109,9 +110,6 @@ export class SlipsService {
   }
 
   private async extractWithGemini(base64Image: string, mimeType: string) {
-    const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
-    if (!apiKey) throw new Error("GOOGLE_GEMINI_API_KEY not configured");
-
     const systemPrompt =
       "You are a Thai bank transaction slip OCR expert. Extract data accurately.";
     const userPrompt = `Extract the following from this Thai bank slip image and return ONLY valid JSON:
@@ -132,9 +130,7 @@ export class SlipsService {
     If you cannot read the image clearly, return confidence below 0.5.`;
 
     try {
-      // Using Gemini 1.5 Flash via REST API
-      const response = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
+      const result = await this.geminiService.generateContent(
         {
           contents: [
             {
@@ -149,18 +145,11 @@ export class SlipsService {
               ],
             },
           ],
-          generationConfig: {
-            response_mime_type: "application/json",
-          },
         },
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        },
+        { responseMimeType: "application/json" },
       );
 
-      const textResponse = response.data.candidates[0].content.parts[0].text;
+      const textResponse = result.candidates[0].content.parts[0].text;
       return JSON.parse(textResponse);
     } catch (error: any) {
       const errorDetail = error.response?.data?.error?.message || error.message;

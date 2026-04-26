@@ -1,19 +1,17 @@
 import { Injectable } from "@nestjs/common";
 import { TransactionsService } from "../transactions/transactions.service";
 import { BudgetsService } from "../budgets/budgets.service";
-import axios from "axios";
+import { GeminiService } from "../gemini/gemini.service";
 
 @Injectable()
 export class AdvisorService {
   constructor(
     private readonly transactionsService: TransactionsService,
     private readonly budgetsService: BudgetsService,
+    private readonly geminiService: GeminiService,
   ) {}
 
   async getAdvice(userId: string, userMessage: string): Promise<string> {
-    const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
-    if (!apiKey) return "ขออภัยครับ ระบบ AI ยังไม่พร้อมใช้งานในขณะนี้";
-
     const now = new Date();
     const month = now.getMonth() + 1;
     const year = now.getFullYear();
@@ -59,29 +57,16 @@ ${transactionContext}
 5. หากถามถึงยอดสรุป ให้สรุปให้กระชับ`;
 
     try {
-      const response = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-        {
-          contents: [
-            {
-              parts: [
-                { text: `${systemPrompt}\n\nผู้ใช้ถามว่า: ${userMessage}` },
-              ],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 500,
+      const result = await this.geminiService.generateContent({
+        contents: [
+          {
+            parts: [{ text: `${systemPrompt}\n\nผู้ใช้ถามว่า: ${userMessage}` }],
           },
-        },
-      );
+        ],
+      });
 
-      return response.data.candidates[0].content.parts[0].text;
+      return result.candidates[0].content.parts[0].text;
     } catch (error: any) {
-      console.error(
-        "Gemini Advisor Error:",
-        error.response?.data || error.message,
-      );
       return "ขออภัยครับ ผมไม่สามารถวิเคราะห์ข้อมูลได้ในขณะนี้ ลองใหม่อีกครั้งนะครับ";
     }
   }
