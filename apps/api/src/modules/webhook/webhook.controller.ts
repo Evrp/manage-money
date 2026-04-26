@@ -19,27 +19,20 @@ export class WebhookController {
     @Body() body: any,
     @Headers("x-line-signature") signature: string,
   ) {
-    // If it's a verification request from LINE, it might have an empty events array
     const events = body.events || [];
-
-    // For LINE "Verify" button, if events are empty, we can return 200 early
-    // but better to fix the signature check
-
     const channelSecret = process.env.LINE_CHANNEL_SECRET;
+
     if (!channelSecret) {
-      console.warn("LINE_CHANNEL_SECRET is not set");
-      return { success: true }; // Return 200 anyway to prevent webhook being disabled
+      console.warn("LINE_CHANNEL_SECRET is not set in environment variables");
+      return { success: true };
     }
 
-    // In Vercel environment, req.rawBody might be available if configured
-    // If not, we use the JSON.stringify but with careful matching
+    // Use the raw body captured in main.ts
     const rawBody = req.rawBody || JSON.stringify(body);
 
     if (!this.verifySignature(rawBody, signature, channelSecret)) {
-      console.error("Signature verification failed");
-      // During verification, LINE sends a test request.
-      // If we are sure the secret is there, we should still return 200 to let it pass
-      // if it's clearly a test (empty events)
+      console.error("LINE Signature verification failed");
+      // If it's a test/verify request (no events), return 200 to keep the webhook active
       if (events.length === 0) return { success: true };
 
       throw new BadRequestException("Invalid signature");

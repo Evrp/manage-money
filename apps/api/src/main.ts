@@ -10,7 +10,21 @@ export const createApp = async (expressInstance: any) => {
   const app = await NestFactory.create(
     AppModule,
     new ExpressAdapter(expressInstance),
+    { bodyParser: false },
   );
+
+  // Configure middleware to capture raw body for LINE signature verification
+  app.use(
+    express.json({
+      verify: (req: any, res, buf) => {
+        if (req.url.includes("webhook")) {
+          req.rawBody = buf.toString();
+        }
+      },
+    }),
+  );
+  app.use(express.urlencoded({ extended: true }));
+
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
