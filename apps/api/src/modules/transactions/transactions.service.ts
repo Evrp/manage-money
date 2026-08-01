@@ -57,8 +57,37 @@ export class TransactionsService {
     return { data: refreshedData, total, page, limit, order };
   }
 
+  private calculateCycleMonthYear(
+    date: Date,
+    isNextMonthCycle?: boolean,
+    targetMonth?: number,
+    targetYear?: number,
+  ) {
+    let month = date.getMonth() + 1;
+    let year = date.getFullYear();
+
+    if (isNextMonthCycle) {
+      month += 1;
+      if (month > 12) {
+        month = 1;
+        year += 1;
+      }
+    }
+
+    if (targetMonth) month = Number(targetMonth);
+    if (targetYear) year = Number(targetYear);
+
+    return { month, year };
+  }
+
   async create(userId: string, createTransactionDto: CreateTransactionDto) {
     const date = new Date(createTransactionDto.date);
+    const { month, year } = this.calculateCycleMonthYear(
+      date,
+      createTransactionDto.isNextMonthCycle,
+      createTransactionDto.targetMonth,
+      createTransactionDto.targetYear,
+    );
 
     // Extract path from imageUrl if it is a full URL
     let slipImageUrl = createTransactionDto.slipImageUrl;
@@ -73,8 +102,8 @@ export class TransactionsService {
       userId: new Types.ObjectId(userId),
       categoryId: new Types.ObjectId(createTransactionDto.categoryId),
       date,
-      month: date.getMonth() + 1,
-      year: date.getFullYear(),
+      month,
+      year,
     });
 
     const saved = await transaction.save();
@@ -141,12 +170,31 @@ export class TransactionsService {
       throw new NotFoundException("Transaction not found");
     }
 
-    // Prepare date fields if date changed
-    if (updateData.date) {
-      const date = new Date(updateData.date);
-      updateData.month = date.getMonth() + 1;
-      updateData.year = date.getFullYear();
-    }
+    // Prepare date/cycle fields if date or cycle flags changed
+    const targetDate = updateData.date
+      ? new Date(updateData.date)
+      : new Date(oldTransaction.date);
+    const isNext =
+      updateData.isNextMonthCycle !== undefined
+        ? updateData.isNextMonthCycle
+        : oldTransaction.isNextMonthCycle;
+    const tMonth =
+      updateData.targetMonth !== undefined
+        ? updateData.targetMonth
+        : oldTransaction.targetMonth;
+    const tYear =
+      updateData.targetYear !== undefined
+        ? updateData.targetYear
+        : oldTransaction.targetYear;
+
+    const { month, year } = this.calculateCycleMonthYear(
+      targetDate,
+      isNext,
+      tMonth,
+      tYear,
+    );
+    updateData.month = month;
+    updateData.year = year;
 
     // 1. Revert budget for old transaction if it was an expense
     if (oldTransaction.type === "expense" && oldTransaction.categoryId) {

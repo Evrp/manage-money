@@ -36,6 +36,12 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
     slipImageUrl: initialData?.slipImageUrl || "",
   });
 
+  const [isNextMonthCycle, setIsNextMonthCycle] = useState(
+    initialData?.isNextMonthCycle !== undefined
+      ? initialData.isNextMonthCycle
+      : false,
+  );
+
   const [isUploading, setIsUploading] = useState(false);
   const [showCreateCategory, setShowCreateCategory] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -47,19 +53,35 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
   const filteredCategories =
     categories?.filter((c) => c.type === formData.type) || [];
 
-  // Auto-select category if initialData has a suggested name
+  // Auto-detect end of month date (>= 25th) to suggest next month cycle
   React.useEffect(() => {
-    if (initialData?.suggestedCategory && categories && !formData.categoryId) {
-      const matched = categories.find(
-        (c) =>
-          c.name.includes(initialData.suggestedCategory) ||
-          initialData.suggestedCategory.includes(c.name),
-      );
-      if (matched) {
-        setFormData((prev) => ({ ...prev, categoryId: matched._id }));
+    if (formData.date && initialData?.isNextMonthCycle === undefined) {
+      const d = new Date(formData.date);
+      if (d.getDate() >= 25) {
+        setIsNextMonthCycle(true);
       }
     }
-  }, [categories, initialData, formData.categoryId]);
+  }, [formData.date, initialData?.isNextMonthCycle]);
+
+  // Compute Target Cycle Month Name
+  const targetCycleText = React.useMemo(() => {
+    if (!formData.date) return "";
+    const d = new Date(formData.date);
+    let m = d.getMonth();
+    let y = d.getFullYear();
+    if (isNextMonthCycle) {
+      m += 1;
+      if (m > 11) {
+        m = 0;
+        y += 1;
+      }
+    }
+    const cycleDate = new Date(y, m, 1);
+    return cycleDate.toLocaleDateString("th-TH", {
+      month: "long",
+      year: "numeric",
+    });
+  }, [formData.date, isNextMonthCycle]);
 
   const handleFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -97,6 +119,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
     onSubmit({
       ...formData,
       amount: Number(formData.amount),
+      isNextMonthCycle,
     });
   };
 
@@ -357,6 +380,33 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Monthly Cycle Cutoff Toggle */}
+            <div className="bg-indigo-50/70 p-4 rounded-2xl border border-indigo-100 flex items-center justify-between gap-3">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-black text-indigo-950">
+                    ตัดรอบเป็นเดือนถัดไป
+                  </span>
+                  <span className="bg-indigo-200 text-indigo-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                    รอบบัญชี: {targetCycleText}
+                  </span>
+                </div>
+                <p className="text-[11px] text-indigo-700/80 font-medium">
+                  ใช้นับเป็นรายรับ/รายจ่ายของงบประมาณเดือน {targetCycleText}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsNextMonthCycle(!isNextMonthCycle)}
+                className={`w-12 h-7 shrink-0 flex items-center rounded-full p-1 transition-colors duration-300 ${
+                  isNextMonthCycle ? "bg-indigo-600 justify-end" : "bg-gray-300 justify-start"
+                }`}
+              >
+                <span className="bg-white w-5 h-5 rounded-full shadow-md" />
+              </button>
             </div>
 
             <button

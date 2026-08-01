@@ -29,6 +29,7 @@ export interface SlipItemState {
     categoryId: string;
     note: string;
     date: string;
+    isNextMonthCycle?: boolean;
     suggestedCategory?: string;
     slipImageUrl?: string;
   };
@@ -71,6 +72,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
           categoryId: "",
           note: "",
           date: new Date().toISOString().split("T")[0],
+          isNextMonthCycle: false,
         },
       }));
 
@@ -108,6 +110,8 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
           if (i.id !== item.id) return i;
           const extracted = data.extractedData || {};
           const isIncome = extracted.transactionType === "income";
+          const slipDate = extracted.transactionDate || i.formData.date;
+          const isEndOfMonth = slipDate ? new Date(slipDate).getDate() >= 25 : false;
 
           return {
             ...i,
@@ -116,9 +120,10 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
             formData: {
               ...i.formData,
               amount: extracted.amount ? String(extracted.amount) : "",
-              date: extracted.transactionDate || i.formData.date,
+              date: slipDate,
               note: extracted.toName || extracted.toBank || "",
               type: isIncome ? "income" : "expense",
+              isNextMonthCycle: isEndOfMonth,
               suggestedCategory: suggested,
               categoryId: matchedCategoryId || i.formData.categoryId,
               slipImageUrl: data.imageUrl,
@@ -262,6 +267,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
           categoryId: item.formData.categoryId,
           note: item.formData.note,
           date: item.formData.date,
+          isNextMonthCycle: item.formData.isNextMonthCycle,
           slipImageUrl: item.formData.slipImageUrl,
         },
       }));
@@ -612,6 +618,46 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                             />
                           </div>
                         </div>
+
+                        {/* Monthly Cycle Cutoff Switch */}
+                        {(() => {
+                          const slipDate = item.formData.date ? new Date(item.formData.date) : new Date();
+                          let m = slipDate.getMonth();
+                          let y = slipDate.getFullYear();
+                          if (item.formData.isNextMonthCycle) {
+                            m += 1;
+                            if (m > 11) { m = 0; y += 1; }
+                          }
+                          const cycleText = new Date(y, m, 1).toLocaleDateString("th-TH", { month: "short", year: "numeric" });
+
+                          return (
+                            <div className="bg-indigo-50/70 p-3 rounded-2xl border border-indigo-100 flex items-center justify-between gap-2">
+                              <div className="text-[11px] font-bold text-indigo-950 flex items-center gap-1.5 flex-wrap">
+                                <span>ตัดรอบเป็นเดือนถัดไป</span>
+                                <span className="bg-indigo-200 text-indigo-800 text-[10px] px-2 py-0.5 rounded-full">
+                                  นับในรอบ: {cycleText}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleUpdateItemForm(
+                                    item.id,
+                                    "isNextMonthCycle",
+                                    !item.formData.isNextMonthCycle,
+                                  )
+                                }
+                                className={`w-10 h-6 shrink-0 flex items-center rounded-full p-0.5 transition-colors ${
+                                  item.formData.isNextMonthCycle
+                                    ? "bg-indigo-600 justify-end"
+                                    : "bg-gray-300 justify-start"
+                                }`}
+                              >
+                                <span className="bg-white w-4 h-4 rounded-full shadow" />
+                              </button>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>

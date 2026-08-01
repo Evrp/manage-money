@@ -60,7 +60,9 @@ ${transactionContext}
       const result = await this.geminiService.generateContent({
         contents: [
           {
-            parts: [{ text: `${systemPrompt}\n\nผู้ใช้ถามว่า: ${userMessage}` }],
+            parts: [
+              { text: `${systemPrompt}\n\nผู้ใช้ถามว่า: ${userMessage}` },
+            ],
           },
         ],
       });

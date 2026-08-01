@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsString,
   IsMongoId,
+  IsBoolean,
 } from "class-validator";
 import { TransactionType } from "@moneyflow/shared";
 
@@ -37,4 +38,16 @@ export class CreateTransactionDto {
   @IsOptional()
   @IsString()
   slipImageUrl?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isNextMonthCycle?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  targetMonth?: number;
+
+  @IsOptional()
+  @IsNumber()
+  targetYear?: number;
 }

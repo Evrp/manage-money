@@ -42,6 +42,15 @@ export class Transaction extends Document implements ITransaction {
 
   @Prop()
   aiConfidence?: number;
+
+  @Prop({ default: false })
+  isNextMonthCycle?: boolean;
+
+  @Prop()
+  targetMonth?: number;
+
+  @Prop()
+  targetYear?: number;
 }
 
 export const TransactionSchema = SchemaFactory.createForClass(Transaction);

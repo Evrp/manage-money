@@ -33,7 +33,8 @@ export const createApp = async (expressInstance: any) => {
   );
   app.enableCors({
     origin:
-      process.env.NODE_ENV === "development" || process.env.NODE_ENV !== "production"
+      process.env.NODE_ENV === "development" ||
+      process.env.NODE_ENV !== "production"
         ? true
         : process.env.FRONTEND_URL
           ? process.env.FRONTEND_URL.split(",")

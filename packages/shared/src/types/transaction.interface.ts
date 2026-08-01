@@ -28,6 +28,9 @@ export interface ITransaction {
   slipData?: ISlipData;
   isAutoImported: boolean;
   aiConfidence?: number;
+  isNextMonthCycle?: boolean;
+  targetMonth?: number;
+  targetYear?: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
