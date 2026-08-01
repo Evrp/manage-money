@@ -44,8 +44,8 @@ const TransactionsPage = () => {
   const now = new Date();
   const [activeTab, setActiveTab] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedMonth, setSelectedMonth] = useState<number>(now.getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState<number | string>(now.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(now.getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState<number | null>(now.getFullYear());
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
     null,
@@ -59,13 +59,12 @@ const TransactionsPage = () => {
   const [order, setOrder] = useState<"asc" | "desc">("desc");
 
   // Fetch transactions
-  const numericYear = Number(selectedYear) || now.getFullYear();
   const { data: transactionsResponse, isLoading } = useQuery({
     queryKey: [
       "transactions",
       activeTab,
       selectedMonth,
-      numericYear,
+      selectedYear,
       order,
       uploadDateFilter,
       slipsOnlyFilter,
@@ -73,12 +72,14 @@ const TransactionsPage = () => {
     ],
     queryFn: async () => {
       const typeParam = activeTab === "all" ? "" : `&type=${activeTab}`;
+      const monthParam = selectedMonth !== null ? `&month=${selectedMonth}` : "";
+      const yearParam = selectedYear !== null ? `&year=${selectedYear}` : "";
       const uploadDateParam = uploadDateFilter ? `&uploadDate=${uploadDateFilter}` : "";
       const slipsOnlyParam = slipsOnlyFilter ? `&slipsOnly=true` : "";
       const sortByUploadParam = sortByUpload ? `&sortByUpload=true` : "";
 
       const { data } = await api.get(
-        `/transactions?month=${selectedMonth}&year=${numericYear}${typeParam}${uploadDateParam}${slipsOnlyParam}${sortByUploadParam}&limit=100&order=${order}`,
+        `/transactions?limit=100${monthParam}${yearParam}${typeParam}${uploadDateParam}${slipsOnlyParam}${sortByUploadParam}&order=${order}`,
       );
       return data;
     },
@@ -247,10 +248,21 @@ const TransactionsPage = () => {
                           เลือกเดือน
                         </label>
                         <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
-                          ค่าเริ่มต้น: เดือนปัจจุบัน
+                          {selectedMonth === null ? "แสดงทุกเดือน" : "กดซ้ำเพื่อแสดงทุกเดือน"}
                         </span>
                       </div>
                       <div className="flex gap-2 overflow-x-auto py-1.5 custom-scrollbar">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedMonth(null)}
+                          className={`shrink-0 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all border ${
+                            selectedMonth === null
+                              ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100 scale-105"
+                              : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+                          }`}
+                        >
+                          ทุกเดือน
+                        </button>
                         {[
                           "ม.ค.",
                           "ก.พ.",
@@ -271,7 +283,9 @@ const TransactionsPage = () => {
                             <button
                               key={mNum}
                               type="button"
-                              onClick={() => setSelectedMonth(mNum)}
+                              onClick={() =>
+                                setSelectedMonth(isSelected ? null : mNum)
+                              }
                               className={`shrink-0 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all border ${
                                 isSelected
                                   ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100 scale-105"
@@ -287,20 +301,38 @@ const TransactionsPage = () => {
 
                     {/* Year Slidable Selector Chips */}
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">
-                        เลือกปี (ค.ศ. / พ.ศ.)
-                      </label>
+                      <div className="flex justify-between items-center">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">
+                          เลือกปี (ค.ศ. / พ.ศ.)
+                        </label>
+                        <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
+                          {selectedYear === null ? "แสดงทุกปี" : "กดซ้ำเพื่อแสดงทุกปี"}
+                        </span>
+                      </div>
                       <div className="flex gap-2 overflow-x-auto py-1.5 custom-scrollbar">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedYear(null)}
+                          className={`shrink-0 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all border ${
+                            selectedYear === null
+                              ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100 scale-105"
+                              : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+                          }`}
+                        >
+                          ทุกปี
+                        </button>
                         {Array.from(
                           { length: 30 },
                           (_, i) => now.getFullYear() - 15 + i,
                         ).map((year) => {
-                          const isSelected = numericYear === year;
+                          const isSelected = selectedYear === year;
                           return (
                             <button
                               key={year}
                               type="button"
-                              onClick={() => setSelectedYear(year)}
+                              onClick={() =>
+                                setSelectedYear(isSelected ? null : year)
+                              }
                               className={`shrink-0 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all border ${
                                 isSelected
                                   ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100 scale-105"

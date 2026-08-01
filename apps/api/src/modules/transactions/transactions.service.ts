@@ -33,9 +33,9 @@ export class TransactionsService {
       userId: { $in: [userId, userObjectId] },
     };
 
-    if (month && year && !uploadDate) {
-      filter.month = month;
-      filter.year = year;
+    if (!uploadDate) {
+      if (month) filter.month = month;
+      if (year) filter.year = year;
     }
 
     if (uploadDate) {
