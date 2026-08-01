@@ -109,6 +109,62 @@ export class SlipsService {
     return transaction;
   }
 
+  async processBatchUpload(userId: string, files: Express.Multer.File[]) {
+    if (!files || files.length === 0) {
+      throw new BadRequestException("No files uploaded");
+    }
+
+    const results = await Promise.all(
+      files.map(async (file) => {
+        try {
+          const res = await this.processUpload(userId, file);
+          return {
+            filename: file.originalname,
+            status: "success",
+            ...res,
+          };
+        } catch (error: any) {
+          return {
+            filename: file.originalname,
+            status: "error",
+            error: error.message || "Failed to process slip",
+          };
+        }
+      }),
+    );
+
+    return results;
+  }
+
+  async confirmBatch(
+    userId: string,
+    items: Array<{ slipId: string; transactionData: CreateTransactionDto }>,
+  ) {
+    if (!items || items.length === 0) {
+      throw new BadRequestException("No items provided for confirmation");
+    }
+
+    const results = [];
+    for (const item of items) {
+      try {
+        const transaction = await this.confirm(
+          userId,
+          item.slipId,
+          item.transactionData,
+        );
+        results.push({ slipId: item.slipId, status: "success", transaction });
+      } catch (error: any) {
+        results.push({
+          slipId: item.slipId,
+          status: "error",
+          error: error.message || "Failed to confirm slip",
+        });
+      }
+    }
+
+    return results;
+  }
+
   private async extractWithGemini(base64Image: string, mimeType: string) {
     const systemPrompt =
       "You are a Thai bank transaction slip OCR expert. Extract data accurately.";

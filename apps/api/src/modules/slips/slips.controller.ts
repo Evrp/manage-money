@@ -6,9 +6,10 @@ import {
   Request,
   UseInterceptors,
   UploadedFile,
+  UploadedFiles,
   BadRequestException,
 } from "@nestjs/common";
-import { FileInterceptor } from "@nestjs/platform-express";
+import { FileInterceptor, FilesInterceptor } from "@nestjs/platform-express";
 import { SlipsService } from "./slips.service";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { CreateTransactionDto } from "../transactions/dto/create-transaction.dto";
@@ -23,6 +24,18 @@ export class SlipsController {
   async upload(@Request() req, @UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException("No file uploaded");
     return this.slipsService.processUpload(req.user.userId, file);
+  }
+
+  @Post("batch-upload")
+  @UseInterceptors(FilesInterceptor("files", 10))
+  async batchUpload(
+    @Request() req,
+    @UploadedFiles() files: Express.Multer.File[],
+  ) {
+    if (!files || files.length === 0) {
+      throw new BadRequestException("No files uploaded");
+    }
+    return this.slipsService.processBatchUpload(req.user.userId, files);
   }
 
   @Post("attachment")
@@ -42,5 +55,16 @@ export class SlipsController {
       body.slipId,
       body.transactionData,
     );
+  }
+
+  @Post("batch-confirm")
+  async confirmBatch(
+    @Request() req,
+    @Body()
+    body: {
+      items: Array<{ slipId: string; transactionData: CreateTransactionDto }>;
+    },
+  ) {
+    return this.slipsService.confirmBatch(req.user.userId, body.items);
   }
 }

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import Layout from "../components/layout/Layout";
 import {
   Search,
@@ -12,12 +12,14 @@ import {
   Loader2,
   Trash2,
   RotateCcw,
+  Receipt,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../services/api";
 import { useCategories } from "../hooks/useCategories";
 import Calendar from "../components/ui/Calendar";
 import TransactionForm from "../components/ui/TransactionForm";
+import BulkSlipUploadModal from "../components/ui/BulkSlipUploadModal";
 
 interface Transaction {
   _id: string;
@@ -39,6 +41,8 @@ interface Transaction {
 
 const TransactionsPage = () => {
   const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [bulkUploadFiles, setBulkUploadFiles] = useState<File[]>([]);
   const [activeTab, setActiveTab] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDate, setSelectedDate] = useState<string>(
@@ -164,9 +168,39 @@ const TransactionsPage = () => {
     { id: "expense", label: "รายจ่าย" },
   ];
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    setBulkUploadFiles(files);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   return (
     <Layout>
       <div className="flex flex-col gap-6">
+        {/* Bulk Upload Modal */}
+        {bulkUploadFiles.length > 0 && (
+          <BulkSlipUploadModal
+            initialFiles={bulkUploadFiles}
+            onClose={() => setBulkUploadFiles([])}
+            onSuccess={() => {
+              queryClient.invalidateQueries({ queryKey: ["transactions"] });
+              queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+              queryClient.invalidateQueries({ queryKey: ["budgets"] });
+            }}
+          />
+        )}
+
+        {/* Hidden Multi-File Input */}
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept="image/*"
+          multiple
+          className="hidden"
+        />
+
         <header className="flex justify-between items-center px-1">
           <div>
             <h1 className="text-2xl font-black text-gray-800">รายงาน</h1>
@@ -174,36 +208,46 @@ const TransactionsPage = () => {
               ติดตามการไหลเวียนของเงิน
             </p>
           </div>
-          <div className="relative">
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => setShowCalendar(true)}
-              className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-gray-400 hover:text-indigo-600 hover:border-indigo-100 transition-all active:scale-95"
+              onClick={() => fileInputRef.current?.click()}
+              className="bg-emerald-50 text-emerald-600 p-3 rounded-2xl border border-emerald-100 shadow-sm hover:bg-emerald-100 transition-all active:scale-95 flex items-center gap-1.5 font-bold text-xs"
+              title="อัพโหลดสลิปหลายรายการ"
             >
-              <CalendarIcon size={20} />
+              <Receipt size={18} />
+              <span className="hidden sm:inline">อัพโหลดสลิป</span>
             </button>
-
-            {showCalendar && (
-              <div
-                className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-                onClick={() => setShowCalendar(false)}
+            <div className="relative">
+              <button
+                onClick={() => setShowCalendar(true)}
+                className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-gray-400 hover:text-indigo-600 hover:border-indigo-100 transition-all active:scale-95"
               >
-                <div onClick={(e) => e.stopPropagation()}>
-                  <Calendar
-                    selectedDate={dateObj}
-                    onChange={(date) => {
-                      const dateStr =
-                        date.getFullYear() +
-                        "-" +
-                        String(date.getMonth() + 1).padStart(2, "0") +
-                        "-" +
-                        String(date.getDate()).padStart(2, "0");
-                      setSelectedDate(dateStr);
-                    }}
-                    onClose={() => setShowCalendar(false)}
-                  />
+                <CalendarIcon size={20} />
+              </button>
+
+              {showCalendar && (
+                <div
+                  className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+                  onClick={() => setShowCalendar(false)}
+                >
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <Calendar
+                      selectedDate={dateObj}
+                      onChange={(date) => {
+                        const dateStr =
+                          date.getFullYear() +
+                          "-" +
+                          String(date.getMonth() + 1).padStart(2, "0") +
+                          "-" +
+                          String(date.getDate()).padStart(2, "0");
+                        setSelectedDate(dateStr);
+                      }}
+                      onClose={() => setShowCalendar(false)}
+                    />
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </header>
 

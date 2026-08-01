@@ -12,6 +12,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import TransactionForm from "../components/ui/TransactionForm";
+import BulkSlipUploadModal from "../components/ui/BulkSlipUploadModal";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCategories } from "../hooks/useCategories";
 import Calendar from "../components/ui/Calendar";
@@ -22,6 +23,7 @@ const HomePage = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [showManualForm, setShowManualForm] = useState(false);
+  const [bulkUploadFiles, setBulkUploadFiles] = useState<File[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().split("T")[0],
   );
@@ -74,6 +76,8 @@ const HomePage = () => {
   };
 
   const handleAddNewManual = () => {
+    setShowManualForm(false);
+    setOcrResult(null);
     setShowManualForm(true);
   };
 
@@ -83,34 +87,15 @@ const HomePage = () => {
 
   const [ocrResult, setOcrResult] = useState<any>(null);
 
-  const handleFileChange = async (
+  const handleFileChange = (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
 
-    setIsUploading(true);
-    const formData = new FormData();
-    formData.append("file", file);
+    setBulkUploadFiles(files);
 
-    // Clear input immediately to prevent double-selection issues
     if (fileInputRef.current) fileInputRef.current.value = "";
-
-    try {
-      const { data } = await api.post("/slips/upload", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      // AI analyzed success, set result to show in form
-      setOcrResult(data);
-      setShowManualForm(true);
-    } catch (error: any) {
-      console.error("Upload failed:", error);
-      const msg = error.response?.data?.message || error.message;
-      alert("อัพโหลดสลิปล้มเหลว: " + msg);
-    } finally {
-      setIsUploading(false);
-    }
   };
 
   const handleManualSubmit = async (formData: any) => {
@@ -144,6 +129,19 @@ const HomePage = () => {
   return (
     <Layout>
       <div className="flex flex-col gap-6">
+        {/* Bulk Upload Modal */}
+        {bulkUploadFiles.length > 0 && (
+          <BulkSlipUploadModal
+            initialFiles={bulkUploadFiles}
+            onClose={() => setBulkUploadFiles([])}
+            onSuccess={() => {
+              queryClient.invalidateQueries({ queryKey: ["recent-transactions"] });
+              queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+              queryClient.invalidateQueries({ queryKey: ["budgets"] });
+            }}
+          />
+        )}
+
         {/* Manual Entry Modal */}
         {showManualForm && (
           <TransactionForm
@@ -182,12 +180,13 @@ const HomePage = () => {
           />
         )}
 
-        {/* Hidden Input */}
+        {/* Hidden Multi-File Input */}
         <input
           type="file"
           ref={fileInputRef}
           onChange={handleFileChange}
           accept="image/*"
+          multiple
           className="hidden"
         />
 
