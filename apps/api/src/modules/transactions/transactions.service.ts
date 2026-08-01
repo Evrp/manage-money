@@ -21,6 +21,9 @@ export class TransactionsService {
       year,
       categoryId,
       type,
+      uploadDate,
+      slipsOnly,
+      sortByUpload,
       page = 1,
       limit = 20,
       order = "desc",
@@ -30,23 +33,41 @@ export class TransactionsService {
       userId: { $in: [userId, userObjectId] },
     };
 
-    if (month && year) {
+    if (month && year && !uploadDate) {
       filter.month = month;
       filter.year = year;
     }
+
+    if (uploadDate) {
+      const start = new Date(uploadDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(uploadDate);
+      end.setHours(23, 59, 59, 999);
+      filter.createdAt = { $gte: start, $lte: end };
+    }
+
+    if (slipsOnly) {
+      filter.slipImageUrl = { $exists: true, $ne: "" };
+    }
+
     if (categoryId) {
-      filter.categoryId = { $in: [categoryId, new Types.ObjectId(categoryId)] };
+      filter.categoryId = {
+        $in: [categoryId, new Types.ObjectId(categoryId)],
+      };
     }
     if (type) filter.type = type;
 
     const skip = (page - 1) * limit;
     const sortOrder = order === "asc" ? 1 : -1;
+    const sortObj: any = sortByUpload
+      ? { createdAt: sortOrder, _id: -1 }
+      : { date: sortOrder, createdAt: -1 };
 
     const [data, total] = await Promise.all([
       this.transactionModel
         .find(filter)
-        .populate("categoryId") // Populate the full category object
-        .sort({ date: sortOrder, createdAt: -1 })
+        .populate("categoryId")
+        .sort(sortObj)
         .skip(skip)
         .limit(limit)
         .exec(),

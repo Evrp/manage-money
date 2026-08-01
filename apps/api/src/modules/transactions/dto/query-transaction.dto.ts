@@ -1,4 +1,12 @@
-import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from "class-validator";
+import {
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+  IsBoolean,
+} from "class-validator";
 import { Type } from "class-transformer";
 import { TransactionType } from "@moneyflow/shared";
 
@@ -22,6 +30,20 @@ export class QueryTransactionDto {
   @IsOptional()
   @IsEnum(TransactionType)
   type?: TransactionType;
+
+  @IsOptional()
+  @IsString()
+  uploadDate?: string;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  slipsOnly?: boolean;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  sortByUpload?: boolean;
 
   @IsOptional()
   @Type(() => Number)

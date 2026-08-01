@@ -53,6 +53,9 @@ const TransactionsPage = () => {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
     null,
   );
+  const [uploadDateFilter, setUploadDateFilter] = useState<string>("");
+  const [slipsOnlyFilter, setSlipsOnlyFilter] = useState<boolean>(false);
+  const [sortByUpload, setSortByUpload] = useState<boolean>(false);
   const [selectedTransaction, setSelectedTransaction] =
     useState<Transaction | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -67,11 +70,18 @@ const TransactionsPage = () => {
       dateObj.getMonth() + 1,
       dateObj.getFullYear(),
       order,
+      uploadDateFilter,
+      slipsOnlyFilter,
+      sortByUpload,
     ],
     queryFn: async () => {
       const typeParam = activeTab === "all" ? "" : `&type=${activeTab}`;
+      const uploadDateParam = uploadDateFilter ? `&uploadDate=${uploadDateFilter}` : "";
+      const slipsOnlyParam = slipsOnlyFilter ? `&slipsOnly=true` : "";
+      const sortByUploadParam = sortByUpload ? `&sortByUpload=true` : "";
+
       const { data } = await api.get(
-        `/transactions?month=${dateObj.getMonth() + 1}&year=${dateObj.getFullYear()}${typeParam}&limit=100&order=${order}`,
+        `/transactions?month=${dateObj.getMonth() + 1}&year=${dateObj.getFullYear()}${typeParam}${uploadDateParam}${slipsOnlyParam}${sortByUploadParam}&limit=100&order=${order}`,
       );
       return data;
     },
@@ -279,28 +289,31 @@ const TransactionsPage = () => {
           <div className="relative">
             <button
               onClick={() => setShowCategoryFilter(true)}
-              className={`px-4 rounded-2xl border shadow-sm transition-all h-full ${
-                selectedCategoryId
+              className={`px-4 rounded-2xl border shadow-sm transition-all h-full flex items-center justify-center gap-1.5 ${
+                selectedCategoryId || uploadDateFilter || slipsOnlyFilter || sortByUpload
                   ? "bg-indigo-600 border-indigo-600 text-white"
                   : "bg-white border-gray-100 text-gray-400 hover:bg-gray-50"
               }`}
             >
               <Filter size={20} />
+              {(uploadDateFilter || slipsOnlyFilter || sortByUpload) && (
+                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              )}
             </button>
 
-            {/* Category Filter Modal */}
+            {/* Filter Modal */}
             {showCategoryFilter && (
               <div
                 className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm"
                 onClick={() => setShowCategoryFilter(false)}
               >
                 <div
-                  className="bg-white w-full max-w-sm rounded-t-[2.5rem] sm:rounded-[2.5rem] p-8 shadow-2xl animate-in slide-in-from-bottom duration-300"
+                  className="bg-white w-full max-w-md rounded-t-[2.5rem] sm:rounded-[2.5rem] p-6 sm:p-8 shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[85vh] overflow-y-auto"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex justify-between items-center mb-6">
                     <h3 className="text-xl font-black text-gray-800">
-                      ตัวกรองหมวดหมู่
+                      ตัวกรองข้อมูลรายงาน
                     </h3>
                     <button
                       onClick={() => setShowCategoryFilter(false)}
@@ -310,50 +323,133 @@ const TransactionsPage = () => {
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-4 gap-3 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
-                    <button
-                      onClick={() => {
-                        setSelectedCategoryId(null);
-                        setShowCategoryFilter(false);
-                      }}
-                      className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all border-2 ${
-                        selectedCategoryId === null
-                          ? "bg-indigo-50 border-indigo-200 text-indigo-600"
-                          : "bg-white border-gray-50 text-gray-400"
-                      }`}
-                    >
-                      <span className="text-lg">
-                        <RotateCcw size={18} />
-                      </span>
-                      <span className="text-[10px] font-bold">ทั้งหมด</span>
-                    </button>
-                    {categories.map((cat: any) => (
-                      <button
-                        key={cat._id}
-                        onClick={() => {
-                          setSelectedCategoryId(cat._id);
-                          setShowCategoryFilter(false);
-                        }}
-                        className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all border-2 ${
-                          selectedCategoryId === cat._id
-                            ? "bg-indigo-600 border-indigo-600 text-white"
-                            : "bg-white border-gray-50 text-gray-400 hover:border-indigo-100"
-                        }`}
-                      >
-                        <span className="text-lg">{cat.icon || "📦"}</span>
-                        <span className="text-[10px] font-bold truncate w-full text-center">
-                          {cat.name}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
+                  <div className="space-y-6">
+                    {/* Upload Date Filter */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">
+                        กรองตามวันที่อัพโหลดสลิป
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="date"
+                          value={uploadDateFilter}
+                          onChange={(e) => setUploadDateFilter(e.target.value)}
+                          className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold text-gray-800"
+                        />
+                        {uploadDateFilter && (
+                          <button
+                            type="button"
+                            onClick={() => setUploadDateFilter("")}
+                            className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all"
+                            title="ล้างวันที่อัพโหลด"
+                          >
+                            <X size={16} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
 
-                  <button
-                    onClick={() => setShowCategoryFilter(false)}
-                    className="w-full mt-8 py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm shadow-xl shadow-indigo-100 active:scale-95 transition-all"
-                  >
-                    ตกลง
-                  </button>
+                    {/* Slips Only & Sort By Upload Toggles */}
+                    <div className="space-y-3 pt-2 border-t border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-xs font-bold text-gray-800 block">
+                            เฉพาะรายการที่มีสลิป (Slips Only)
+                          </span>
+                          <span className="text-[10px] text-gray-400 block">
+                            แสดงเฉพาะรายการที่มีไฟล์ภาพ/เอกสารสลิปแนบ
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSlipsOnlyFilter(!slipsOnlyFilter)}
+                          className={`w-11 h-6 flex items-center rounded-full p-0.5 transition-colors ${
+                            slipsOnlyFilter ? "bg-indigo-600 justify-end" : "bg-gray-300 justify-start"
+                          }`}
+                        >
+                          <span className="bg-white w-4 h-4 rounded-full shadow" />
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-xs font-bold text-gray-800 block">
+                            เรียงตามเวลาอัพโหลดสลิปล่าสุด
+                          </span>
+                          <span className="text-[10px] text-gray-400 block">
+                            เรียงสลิปที่เพิ่งอัพโหลดเข้ามาให้อยู่บนสุด
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSortByUpload(!sortByUpload)}
+                          className={`w-11 h-6 flex items-center rounded-full p-0.5 transition-colors ${
+                            sortByUpload ? "bg-indigo-600 justify-end" : "bg-gray-300 justify-start"
+                          }`}
+                        >
+                          <span className="bg-white w-4 h-4 rounded-full shadow" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Category Filter Grid */}
+                    <div className="space-y-2 pt-2 border-t border-gray-100">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">
+                        หมวดหมู่
+                      </label>
+                      <div className="grid grid-cols-4 gap-2.5 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                        <button
+                          onClick={() => setSelectedCategoryId(null)}
+                          className={`flex flex-col items-center gap-1 p-2.5 rounded-2xl transition-all border-2 ${
+                            selectedCategoryId === null
+                              ? "bg-indigo-50 border-indigo-200 text-indigo-600"
+                              : "bg-white border-gray-100 text-gray-400 hover:bg-gray-50"
+                          }`}
+                        >
+                          <span className="text-base">
+                            <RotateCcw size={16} />
+                          </span>
+                          <span className="text-[10px] font-bold">ทั้งหมด</span>
+                        </button>
+                        {categories.map((cat: any) => (
+                          <button
+                            key={cat._id}
+                            onClick={() => setSelectedCategoryId(cat._id)}
+                            className={`flex flex-col items-center gap-1 p-2.5 rounded-2xl transition-all border-2 ${
+                              selectedCategoryId === cat._id
+                                ? "bg-indigo-600 border-indigo-600 text-white"
+                                : "bg-white border-gray-100 text-gray-400 hover:border-indigo-100"
+                            }`}
+                          >
+                            <span className="text-base">{cat.icon || "📦"}</span>
+                            <span className="text-[10px] font-bold truncate w-full text-center">
+                              {cat.name}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 pt-4">
+                      <button
+                        onClick={() => {
+                          setSelectedCategoryId(null);
+                          setUploadDateFilter("");
+                          setSlipsOnlyFilter(false);
+                          setSortByUpload(false);
+                        }}
+                        className="flex-1 py-3 bg-gray-100 text-gray-600 rounded-2xl font-bold text-xs hover:bg-gray-200 transition-all"
+                      >
+                        ล้างตัวกรองทั้งหมด
+                      </button>
+                      <button
+                        onClick={() => setShowCategoryFilter(false)}
+                        className="flex-1 py-3 bg-indigo-600 text-white rounded-2xl font-black text-xs shadow-lg shadow-indigo-100 active:scale-95 transition-all"
+                      >
+                        ตกลง
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
