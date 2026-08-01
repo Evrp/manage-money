@@ -45,7 +45,7 @@ const TransactionsPage = () => {
   const [activeTab, setActiveTab] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedMonth, setSelectedMonth] = useState<number>(now.getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState<number>(now.getFullYear());
+  const [selectedYear, setSelectedYear] = useState<number | string>(now.getFullYear());
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
     null,
@@ -59,12 +59,13 @@ const TransactionsPage = () => {
   const [order, setOrder] = useState<"asc" | "desc">("desc");
 
   // Fetch transactions
+  const numericYear = Number(selectedYear) || now.getFullYear();
   const { data: transactionsResponse, isLoading } = useQuery({
     queryKey: [
       "transactions",
       activeTab,
       selectedMonth,
-      selectedYear,
+      numericYear,
       order,
       uploadDateFilter,
       slipsOnlyFilter,
@@ -77,7 +78,7 @@ const TransactionsPage = () => {
       const sortByUploadParam = sortByUpload ? `&sortByUpload=true` : "";
 
       const { data } = await api.get(
-        `/transactions?month=${selectedMonth}&year=${selectedYear}${typeParam}${uploadDateParam}${slipsOnlyParam}${sortByUploadParam}&limit=100&order=${order}`,
+        `/transactions?month=${selectedMonth}&year=${numericYear}${typeParam}${uploadDateParam}${slipsOnlyParam}${sortByUploadParam}&limit=100&order=${order}`,
       );
       return data;
     },
@@ -239,60 +240,80 @@ const TransactionsPage = () => {
                   </div>
 
                   <div className="space-y-6">
-                    {/* Month & Year Filter (Default: Current Month) */}
+                    {/* Month Slidable Selector Chips */}
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">
-                          รอบเดือน/ปีที่แสดง
+                          เลือกเดือน
                         </label>
                         <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
                           ค่าเริ่มต้น: เดือนปัจจุบัน
                         </span>
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <select
-                          value={selectedMonth}
-                          onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                          className="bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold text-gray-800 focus:ring-2 focus:ring-indigo-500/20"
-                        >
-                          {[
-                            "มกราคม",
-                            "กุมภาพันธ์",
-                            "มีนาคม",
-                            "เมษายน",
-                            "พฤษภาคม",
-                            "มิถุนายน",
-                            "กรกฎาคม",
-                            "สิงหาคม",
-                            "กันยายน",
-                            "ตุลาคม",
-                            "พฤศจิกายน",
-                            "ธันวาคม",
-                          ].map((monthName, idx) => (
-                            <option key={idx + 1} value={idx + 1}>
-                              {monthName}
-                            </option>
-                          ))}
-                        </select>
+                      <div className="flex gap-2 overflow-x-auto py-1.5 custom-scrollbar">
+                        {[
+                          "ม.ค.",
+                          "ก.พ.",
+                          "มี.ค.",
+                          "เม.ย.",
+                          "พ.ค.",
+                          "มิ.ย.",
+                          "ก.ค.",
+                          "ส.ค.",
+                          "ก.ย.",
+                          "ต.ค.",
+                          "พ.ย.",
+                          "ธ.ค.",
+                        ].map((mName, idx) => {
+                          const mNum = idx + 1;
+                          const isSelected = selectedMonth === mNum;
+                          return (
+                            <button
+                              key={mNum}
+                              type="button"
+                              onClick={() => setSelectedMonth(mNum)}
+                              className={`shrink-0 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all border ${
+                                isSelected
+                                  ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100 scale-105"
+                                  : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+                              }`}
+                            >
+                              {mName}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
 
-                        <div className="relative">
-                          <input
-                            type="number"
-                            min="1900"
-                            max="2100"
-                            value={selectedYear}
-                            onChange={(e) =>
-                              setSelectedYear(
-                                Math.max(1900, Math.min(2100, Number(e.target.value) || new Date().getFullYear())),
-                              )
-                            }
-                            placeholder="ปี (ค.ศ.)"
-                            className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold text-gray-800 focus:ring-2 focus:ring-indigo-500/20"
-                          />
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 font-bold pointer-events-none">
-                            พ.ศ. {selectedYear + 543}
-                          </span>
-                        </div>
+                    {/* Year Slidable Selector Chips */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">
+                        เลือกปี (ค.ศ. / พ.ศ.)
+                      </label>
+                      <div className="flex gap-2 overflow-x-auto py-1.5 custom-scrollbar">
+                        {Array.from(
+                          { length: 30 },
+                          (_, i) => now.getFullYear() - 15 + i,
+                        ).map((year) => {
+                          const isSelected = numericYear === year;
+                          return (
+                            <button
+                              key={year}
+                              type="button"
+                              onClick={() => setSelectedYear(year)}
+                              className={`shrink-0 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all border ${
+                                isSelected
+                                  ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100 scale-105"
+                                  : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+                              }`}
+                            >
+                              <span>{year}</span>
+                              <span className="text-[10px] opacity-70 ml-1 font-normal">
+                                ({year + 543})
+                              </span>
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
 
