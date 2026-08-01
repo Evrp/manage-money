@@ -41,14 +41,11 @@ interface Transaction {
 
 const TransactionsPage = () => {
   const queryClient = useQueryClient();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [bulkUploadFiles, setBulkUploadFiles] = useState<File[]>([]);
+  const now = new Date();
   const [activeTab, setActiveTab] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().split("T")[0],
-  );
-  const [showCalendar, setShowCalendar] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState<number>(now.getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState<number>(now.getFullYear());
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
     null,
@@ -62,13 +59,12 @@ const TransactionsPage = () => {
   const [order, setOrder] = useState<"asc" | "desc">("desc");
 
   // Fetch transactions
-  const dateObj = new Date(selectedDate);
   const { data: transactionsResponse, isLoading } = useQuery({
     queryKey: [
       "transactions",
       activeTab,
-      dateObj.getMonth() + 1,
-      dateObj.getFullYear(),
+      selectedMonth,
+      selectedYear,
       order,
       uploadDateFilter,
       slipsOnlyFilter,
@@ -81,7 +77,7 @@ const TransactionsPage = () => {
       const sortByUploadParam = sortByUpload ? `&sortByUpload=true` : "";
 
       const { data } = await api.get(
-        `/transactions?month=${dateObj.getMonth() + 1}&year=${dateObj.getFullYear()}${typeParam}${uploadDateParam}${slipsOnlyParam}${sortByUploadParam}&limit=100&order=${order}`,
+        `/transactions?month=${selectedMonth}&year=${selectedYear}${typeParam}${uploadDateParam}${slipsOnlyParam}${sortByUploadParam}&limit=100&order=${order}`,
       );
       return data;
     },
@@ -178,96 +174,15 @@ const TransactionsPage = () => {
     { id: "expense", label: "รายจ่าย" },
   ];
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
-
-    // Check 10MB limit per file
-    const MAX_SIZE = 10 * 1024 * 1024;
-    const oversizedFiles = files.filter((f) => f.size > MAX_SIZE);
-    if (oversizedFiles.length > 0) {
-      alert(`มีบางไฟล์ขนาดเกิน 10MB (ไฟล์: ${oversizedFiles.map((f) => f.name).join(", ")}) กรุณาเลือกไฟล์ที่เล็กกว่า 10MB`);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      return;
-    }
-
-    setBulkUploadFiles(files);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
   return (
     <Layout>
       <div className="flex flex-col gap-6">
-        {/* Bulk Upload Modal */}
-        {bulkUploadFiles.length > 0 && (
-          <BulkSlipUploadModal
-            initialFiles={bulkUploadFiles}
-            onClose={() => setBulkUploadFiles([])}
-            onSuccess={() => {
-              queryClient.invalidateQueries({ queryKey: ["transactions"] });
-              queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
-              queryClient.invalidateQueries({ queryKey: ["budgets"] });
-            }}
-          />
-        )}
-
-        {/* Hidden Multi-File Input */}
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileChange}
-          accept="image/*,application/pdf"
-          multiple
-          className="hidden"
-        />
-
         <header className="flex justify-between items-center px-1">
           <div>
             <h1 className="text-2xl font-black text-gray-800">รายงาน</h1>
             <p className="text-gray-400 text-sm font-medium">
               ติดตามการไหลเวียนของเงิน
             </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="bg-emerald-50 text-emerald-600 p-3 rounded-2xl border border-emerald-100 shadow-sm hover:bg-emerald-100 transition-all active:scale-95 flex items-center gap-1.5 font-bold text-xs"
-              title="อัพโหลดสลิปหลายรายการ"
-            >
-              <Receipt size={18} />
-              <span className="hidden sm:inline">อัพโหลดสลิป</span>
-            </button>
-            <div className="relative">
-              <button
-                onClick={() => setShowCalendar(true)}
-                className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm text-gray-400 hover:text-indigo-600 hover:border-indigo-100 transition-all active:scale-95"
-              >
-                <CalendarIcon size={20} />
-              </button>
-
-              {showCalendar && (
-                <div
-                  className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-                  onClick={() => setShowCalendar(false)}
-                >
-                  <div onClick={(e) => e.stopPropagation()}>
-                    <Calendar
-                      selectedDate={dateObj}
-                      onChange={(date) => {
-                        const dateStr =
-                          date.getFullYear() +
-                          "-" +
-                          String(date.getMonth() + 1).padStart(2, "0") +
-                          "-" +
-                          String(date.getDate()).padStart(2, "0");
-                        setSelectedDate(dateStr);
-                      }}
-                      onClose={() => setShowCalendar(false)}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         </header>
 
@@ -324,8 +239,58 @@ const TransactionsPage = () => {
                   </div>
 
                   <div className="space-y-6">
-                    {/* Upload Date Filter */}
+                    {/* Month & Year Filter (Default: Current Month) */}
                     <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">
+                          รอบเดือน/ปีที่แสดง
+                        </label>
+                        <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
+                          ค่าเริ่มต้น: เดือนปัจจุบัน
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <select
+                          value={selectedMonth}
+                          onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                          className="bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold text-gray-800 focus:ring-2 focus:ring-indigo-500/20"
+                        >
+                          {[
+                            "มกราคม",
+                            "กุมภาพันธ์",
+                            "มีนาคม",
+                            "เมษายน",
+                            "พฤษภาคม",
+                            "มิถุนายน",
+                            "กรกฎาคม",
+                            "สิงหาคม",
+                            "กันยายน",
+                            "ตุลาคม",
+                            "พฤศจิกายน",
+                            "ธันวาคม",
+                          ].map((monthName, idx) => (
+                            <option key={idx + 1} value={idx + 1}>
+                              {monthName}
+                            </option>
+                          ))}
+                        </select>
+
+                        <select
+                          value={selectedYear}
+                          onChange={(e) => setSelectedYear(Number(e.target.value))}
+                          className="bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold text-gray-800 focus:ring-2 focus:ring-indigo-500/20"
+                        >
+                          {[2024, 2025, 2026, 2027, 2028].map((y) => (
+                            <option key={y} value={y}>
+                              {y + 543} ({y})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Upload Date Filter */}
+                    <div className="space-y-2 pt-2 border-t border-gray-100">
                       <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">
                         กรองตามวันที่อัพโหลดสลิป
                       </label>
@@ -437,6 +402,8 @@ const TransactionsPage = () => {
                           setUploadDateFilter("");
                           setSlipsOnlyFilter(false);
                           setSortByUpload(false);
+                          setSelectedMonth(now.getMonth() + 1);
+                          setSelectedYear(now.getFullYear());
                         }}
                         className="flex-1 py-3 bg-gray-100 text-gray-600 rounded-2xl font-bold text-xs hover:bg-gray-200 transition-all"
                       >
