@@ -15,7 +15,7 @@ export default defineConfig({
   server: {
     port: 3001,
     host: true,
-    allowedHosts: ["wilhelmina-semidomestic-rosaria.ngrok-free.dev"],
+    allowedHosts: ["plywood-tint-casually.ngrok-free.dev", ".ngrok-free.dev"],
     proxy: {
       "/api": {
         target: "http://localhost:3000",

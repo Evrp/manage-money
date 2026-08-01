@@ -3,6 +3,7 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "target": "ES2021",
+    "outDir": "./dist",
     "sourceMap": true,
     "declaration": true,
     "experimentalDecorators": true,
