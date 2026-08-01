@@ -148,10 +148,16 @@ export class TransactionsService {
   }
 
   async remove(userId: string, id: string) {
-    const transaction = await this.transactionModel.findOne({
-      _id: id,
-      userId,
-    });
+    const userObjectId = new Types.ObjectId(userId);
+    const transObjectId = Types.ObjectId.isValid(id)
+      ? new Types.ObjectId(id)
+      : id;
+    const queryFilter = {
+      _id: { $in: [id, transObjectId] },
+      userId: { $in: [userId, userObjectId] },
+    };
+
+    const transaction = await this.transactionModel.findOne(queryFilter);
     if (!transaction) {
       throw new NotFoundException("Transaction not found");
     }
@@ -162,7 +168,7 @@ export class TransactionsService {
     }
 
     // 2. Delete from database
-    await this.transactionModel.deleteOne({ _id: id });
+    await this.transactionModel.deleteOne(queryFilter);
 
     // 3. Update budget
     if (transaction.type === "expense" && transaction.categoryId) {
@@ -183,10 +189,16 @@ export class TransactionsService {
   }
 
   async update(userId: string, id: string, updateData: any) {
-    const oldTransaction = await this.transactionModel.findOne({
-      _id: id,
-      userId,
-    });
+    const userObjectId = new Types.ObjectId(userId);
+    const transObjectId = Types.ObjectId.isValid(id)
+      ? new Types.ObjectId(id)
+      : id;
+    const queryFilter = {
+      _id: { $in: [id, transObjectId] },
+      userId: { $in: [userId, userObjectId] },
+    };
+
+    const oldTransaction = await this.transactionModel.findOne(queryFilter);
     if (!oldTransaction) {
       throw new NotFoundException("Transaction not found");
     }
@@ -246,7 +258,7 @@ export class TransactionsService {
     }
 
     const newTransaction = await this.transactionModel.findOneAndUpdate(
-      { _id: id, userId: new Types.ObjectId(userId) },
+      queryFilter,
       { $set: updateData },
       { new: true },
     );

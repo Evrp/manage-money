@@ -9,6 +9,7 @@ import {
   UseGuards,
   Request,
   Patch,
+  Put,
 } from "@nestjs/common";
 import { TransactionsService } from "./transactions.service";
 import { CreateTransactionDto } from "./dto/create-transaction.dto";
@@ -51,6 +52,7 @@ export class TransactionsController {
     return this.transactionsService.remove(req.user.userId, id);
   }
 
+  @Put(":id")
   @Patch(":id")
   update(@Param("id") id: string, @Request() req, @Body() updateData: any) {
     return this.transactionsService.update(req.user.userId, id, updateData);
