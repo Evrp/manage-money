@@ -20,14 +20,14 @@ export class SlipsService {
 
   async processUpload(userId: string, file: Express.Multer.File) {
     try {
-      // 1. Process image and Upload to storage (EXTERNAL CALL - Done first)
-      const { fileName, imageUrl, processedBuffer } =
+      // 1. Process image/PDF and Upload to storage (EXTERNAL CALL - Done first)
+      const { fileName, imageUrl, processedBuffer, mimeType } =
         await this.uploadToStorage(userId, file);
 
       // 2. OCR with Google Gemini API (EXTERNAL CALL - Do before DB work)
       const extractedData = await this.extractWithGemini(
         processedBuffer.toString("base64"),
-        "image/webp",
+        mimeType,
       );
 
       // 3. Save to Database (Save path, not full signed URL)
@@ -73,6 +73,8 @@ export class SlipsService {
       } catch (error) {
         console.error("Image processing error:", error);
       }
+    } else if (file.mimetype === "application/pdf") {
+      mimeType = "application/pdf";
     }
 
     const bucket = this.firebaseService.getBucket();

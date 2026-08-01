@@ -10,6 +10,7 @@ import {
   Sparkles,
   ZoomIn,
   Eye,
+  FileText,
 } from "lucide-react";
 import api from "../../services/api";
 import { useCategories } from "../../hooks/useCategories";
@@ -179,6 +180,15 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
   const handleAddMoreFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files || []);
     if (selected.length === 0) return;
+
+    // Check 10MB limit per file
+    const MAX_SIZE = 10 * 1024 * 1024;
+    const oversizedFiles = selected.filter((f) => f.size > MAX_SIZE);
+    if (oversizedFiles.length > 0) {
+      alert(`มีบางไฟล์ขนาดเกิน 10MB (ไฟล์: ${oversizedFiles.map((f) => f.name).join(", ")}) กรุณาเลือกไฟล์ที่เล็กกว่า 10MB`);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
 
     const newItems: SlipItemState[] = selected.map((file, index) => ({
       id: `slip_${Date.now()}_${index}`,
@@ -380,7 +390,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
             type="file"
             ref={fileInputRef}
             onChange={handleAddMoreFiles}
-            accept="image/*"
+            accept="image/*,application/pdf"
             multiple
             className="hidden"
           />
@@ -398,6 +408,11 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                   (c) => c.type === item.formData.type,
                 );
 
+                const isPdf =
+                  item.file?.type === "application/pdf" ||
+                  item.file?.name.toLowerCase().endsWith(".pdf") ||
+                  item.formData.slipImageUrl?.toLowerCase().includes(".pdf");
+
                 return (
                   <div
                     key={item.id}
@@ -405,37 +420,72 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                   >
                     {/* Main Flex Layout: Image Prominent on Left/Top, Form on Right */}
                     <div className="flex flex-col sm:flex-row items-stretch gap-5">
-                      {/* Prominent Slip Image Container */}
+                      {/* Prominent Slip Image or PDF Container */}
                       <div className="sm:w-48 shrink-0 flex flex-col gap-2">
-                        <div
-                          onClick={() => setZoomedImage(item.previewUrl)}
-                          className="relative w-full h-52 sm:h-64 rounded-2xl overflow-hidden bg-slate-900 border-2 border-indigo-100 shadow-inner group cursor-pointer"
-                        >
-                          <img
-                            src={item.previewUrl}
-                            alt={`Slip ${index + 1}`}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                          
-                          {/* Slip Badge Number */}
-                          <div className="absolute top-2 left-2 bg-black/70 text-white text-xs font-black px-2.5 py-1 rounded-xl backdrop-blur-md">
-                            ใบที่ #{index + 1}
+                        {isPdf ? (
+                          <div className="relative w-full h-52 sm:h-64 rounded-2xl overflow-hidden bg-rose-50 border-2 border-rose-200 shadow-inner flex flex-col items-center justify-center p-4 text-rose-600 gap-2 text-center group">
+                            <div className="bg-rose-100 p-4 rounded-2xl text-rose-500 group-hover:scale-110 transition-transform">
+                              <FileText size={40} />
+                            </div>
+                            <span className="bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase">
+                              PDF Document
+                            </span>
+                            <span
+                              className="text-xs font-bold text-gray-700 truncate w-full px-2"
+                              title={item.file?.name}
+                            >
+                              {item.file?.name || "เอกสาร PDF"}
+                            </span>
+                            {item.file?.size && (
+                              <span className="text-[10px] text-gray-400 font-medium">
+                                {(item.file.size / (1024 * 1024)).toFixed(2)} MB
+                              </span>
+                            )}
                           </div>
+                        ) : (
+                          <div
+                            onClick={() => setZoomedImage(item.previewUrl)}
+                            className="relative w-full h-52 sm:h-64 rounded-2xl overflow-hidden bg-slate-900 border-2 border-indigo-100 shadow-inner group cursor-pointer"
+                          >
+                            <img
+                              src={item.previewUrl}
+                              alt={`Slip ${index + 1}`}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
 
-                          {/* Hover Overlay with Zoom Button */}
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 text-white backdrop-blur-[2px]">
-                            <ZoomIn size={28} />
-                            <span className="text-xs font-bold">ดูภาพใหญ่</span>
+                            {/* Slip Badge Number */}
+                            <div className="absolute top-2 left-2 bg-black/70 text-white text-xs font-black px-2.5 py-1 rounded-xl backdrop-blur-md">
+                              ใบที่ #{index + 1}
+                            </div>
+
+                            {/* Hover Overlay with Zoom Button */}
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 text-white backdrop-blur-[2px]">
+                              <ZoomIn size={28} />
+                              <span className="text-xs font-bold">
+                                ดูภาพใหญ่
+                              </span>
+                            </div>
                           </div>
-                        </div>
+                        )}
 
                         <button
                           type="button"
-                          onClick={() => setZoomedImage(item.previewUrl)}
+                          onClick={() => {
+                            if (isPdf) {
+                              window.open(
+                                item.previewUrl || item.formData.slipImageUrl,
+                                "_blank",
+                              );
+                            } else {
+                              setZoomedImage(item.previewUrl);
+                            }
+                          }}
                           className="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all"
                         >
                           <Eye size={16} />
-                          <span>ซูมสลิปขนาดเต็ม</span>
+                          <span>
+                            {isPdf ? "เปิดไฟล์ PDF" : "ซูมสลิปขนาดเต็ม"}
+                          </span>
                         </button>
                       </div>
 

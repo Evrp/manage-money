@@ -89,6 +89,12 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
     const file = event.target.files?.[0];
     if (!file) return;
 
+    if (file.size > 10 * 1024 * 1024) {
+      alert("ไฟล์มีขนาดเกิน 10MB กรุณาเลือกไฟล์ที่เล็กกว่า 10MB");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
     setIsUploading(true);
     const uploadData = new FormData();
     uploadData.append("file", file);
@@ -103,9 +109,12 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
         ...formData,
         slipImageUrl: data.imageUrl,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Upload failed:", error);
-      alert("อัพโหลดรูปภาพไม่สำเร็จ");
+      alert(
+        "อัพโหลดไฟล์ไม่สำเร็จ: " +
+          (error.response?.data?.message || error.message),
+      );
     } finally {
       setIsUploading(false);
     }
@@ -143,6 +152,9 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
     createCategoryMutation.mutate(data);
   };
 
+  const isPdfAttachment =
+    formData.slipImageUrl?.toLowerCase().includes(".pdf") || false;
+
   return (
     <>
       {showCreateCategory && (
@@ -169,30 +181,61 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
           </div>
 
           <div className="space-y-6">
-            {/* Slip Preview & Upload */}
+            {/* Slip/Attachment Preview & Upload */}
             <div className="relative group">
               <input
                 type="file"
                 ref={fileInputRef}
                 onChange={handleFileChange}
-                accept="image/*"
+                accept="image/*,application/pdf"
                 className="hidden"
               />
               {formData.slipImageUrl ? (
                 <div className="relative w-full rounded-3xl overflow-hidden mb-4 border-2 border-dashed border-gray-100 bg-gray-50">
-                  <img
-                    src={formData.slipImageUrl}
-                    alt="Slip"
-                    className="w-full h-auto block"
-                  />
-                  <button
-                    onClick={() =>
-                      setFormData({ ...formData, slipImageUrl: "" })
-                    }
-                    className="absolute top-2 right-2 bg-black/50 text-white p-1.5 rounded-full hover:bg-black/70 transition-all"
-                  >
-                    <X size={16} />
-                  </button>
+                  {isPdfAttachment ? (
+                    <div className="p-6 flex items-center justify-between bg-rose-50 text-rose-700">
+                      <div className="flex items-center gap-3">
+                        <span className="bg-rose-200 p-3 rounded-2xl text-rose-600 font-bold">
+                          PDF
+                        </span>
+                        <div>
+                          <p className="font-bold text-sm">เอกสารสลิป PDF</p>
+                          <a
+                            href={formData.slipImageUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs font-semibold underline text-rose-500 hover:text-rose-700"
+                          >
+                            เปิดดูเอกสาร PDF
+                          </a>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() =>
+                          setFormData({ ...formData, slipImageUrl: "" })
+                        }
+                        className="bg-black/10 text-gray-700 p-2 rounded-full hover:bg-black/20 transition-all"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <img
+                        src={formData.slipImageUrl}
+                        alt="Slip"
+                        className="w-full h-auto block"
+                      />
+                      <button
+                        onClick={() =>
+                          setFormData({ ...formData, slipImageUrl: "" })
+                        }
+                        className="absolute top-2 right-2 bg-black/50 text-white p-1.5 rounded-full hover:bg-black/70 transition-all"
+                      >
+                        <X size={16} />
+                      </button>
+                    </>
+                  )}
                 </div>
               ) : (
                 <button

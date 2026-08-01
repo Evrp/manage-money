@@ -93,6 +93,15 @@ const HomePage = () => {
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
 
+    // Check 10MB limit per file
+    const MAX_SIZE = 10 * 1024 * 1024;
+    const oversizedFiles = files.filter((f) => f.size > MAX_SIZE);
+    if (oversizedFiles.length > 0) {
+      alert(`มีบางไฟล์ขนาดเกิน 10MB (ไฟล์: ${oversizedFiles.map((f) => f.name).join(", ")}) กรุณาเลือกไฟล์ที่เล็กกว่า 10MB`);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
     setBulkUploadFiles(files);
 
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -185,7 +194,7 @@ const HomePage = () => {
           type="file"
           ref={fileInputRef}
           onChange={handleFileChange}
-          accept="image/*"
+          accept="image/*,application/pdf"
           multiple
           className="hidden"
         />

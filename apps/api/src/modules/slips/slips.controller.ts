@@ -14,20 +14,39 @@ import { SlipsService } from "./slips.service";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { CreateTransactionDto } from "../transactions/dto/create-transaction.dto";
 
+const multerOptions = {
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: (req: any, file: Express.Multer.File, callback: any) => {
+    if (
+      file.mimetype.startsWith("image/") ||
+      file.mimetype === "application/pdf"
+    ) {
+      callback(null, true);
+    } else {
+      callback(
+        new BadRequestException(
+          "รองรับเฉพาะไฟล์รูปภาพ (JPEG, PNG, WebP) หรือไฟล์ PDF เท่านั้น",
+        ),
+        false,
+      );
+    }
+  },
+};
+
 @Controller("slips")
 @UseGuards(JwtAuthGuard)
 export class SlipsController {
   constructor(private readonly slipsService: SlipsService) {}
 
   @Post("upload")
-  @UseInterceptors(FileInterceptor("file"))
+  @UseInterceptors(FileInterceptor("file", multerOptions))
   async upload(@Request() req, @UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException("No file uploaded");
     return this.slipsService.processUpload(req.user.userId, file);
   }
 
   @Post("batch-upload")
-  @UseInterceptors(FilesInterceptor("files", 10))
+  @UseInterceptors(FilesInterceptor("files", 10, multerOptions))
   async batchUpload(
     @Request() req,
     @UploadedFiles() files: Express.Multer.File[],
@@ -39,7 +58,7 @@ export class SlipsController {
   }
 
   @Post("attachment")
-  @UseInterceptors(FileInterceptor("file"))
+  @UseInterceptors(FileInterceptor("file", multerOptions))
   async uploadOnly(@Request() req, @UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException("No file uploaded");
     return this.slipsService.uploadOnly(req.user.userId, file);
