@@ -275,17 +275,24 @@ const TransactionsPage = () => {
                           ))}
                         </select>
 
-                        <select
-                          value={selectedYear}
-                          onChange={(e) => setSelectedYear(Number(e.target.value))}
-                          className="bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold text-gray-800 focus:ring-2 focus:ring-indigo-500/20"
-                        >
-                          {[2024, 2025, 2026, 2027, 2028].map((y) => (
-                            <option key={y} value={y}>
-                              {y + 543} ({y})
-                            </option>
-                          ))}
-                        </select>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min="1900"
+                            max="2100"
+                            value={selectedYear}
+                            onChange={(e) =>
+                              setSelectedYear(
+                                Math.max(1900, Math.min(2100, Number(e.target.value) || new Date().getFullYear())),
+                              )
+                            }
+                            placeholder="ปี (ค.ศ.)"
+                            className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold text-gray-800 focus:ring-2 focus:ring-indigo-500/20"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 font-bold pointer-events-none">
+                            พ.ศ. {selectedYear + 543}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
