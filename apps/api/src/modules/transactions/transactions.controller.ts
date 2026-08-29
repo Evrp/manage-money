@@ -13,6 +13,7 @@ import {
 } from "@nestjs/common";
 import { TransactionsService } from "./transactions.service";
 import { CreateTransactionDto } from "./dto/create-transaction.dto";
+import { UpdateTransactionDto } from "./dto/update-transaction.dto";
 import { QueryTransactionDto } from "./dto/query-transaction.dto";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 
@@ -53,12 +54,12 @@ export class TransactionsController {
   }
 
   @Patch(":id")
-  update(@Param("id") id: string, @Request() req, @Body() updateData: any) {
+  update(@Param("id") id: string, @Request() req, @Body() updateData: UpdateTransactionDto) {
     return this.transactionsService.update(req.user.userId, id, updateData);
   }
 
   @Put(":id")
-  updatePut(@Param("id") id: string, @Request() req, @Body() updateData: any) {
+  updatePut(@Param("id") id: string, @Request() req, @Body() updateData: UpdateTransactionDto) {
     return this.transactionsService.update(req.user.userId, id, updateData);
   }
 }

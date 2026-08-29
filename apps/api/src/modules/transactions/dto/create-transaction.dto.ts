@@ -7,8 +7,9 @@ import {
   IsString,
   IsMongoId,
   IsBoolean,
+  ValidateIf,
 } from "class-validator";
-import { TransactionType } from "@moneyflow/shared";
+import { PaymentMethod, TransactionType } from "@moneyflow/shared";
 
 export class CreateTransactionDto {
   @IsNotEmpty()
@@ -50,4 +51,8 @@ export class CreateTransactionDto {
   @IsOptional()
   @IsNumber()
   targetYear?: number;
+
+  @IsOptional() @IsEnum(PaymentMethod) paymentMethod?: PaymentMethod;
+  @ValidateIf((dto) => dto.paymentMethod === PaymentMethod.CREDIT_CARD)
+  @IsNotEmpty() @IsMongoId() creditCardId?: string;
 }

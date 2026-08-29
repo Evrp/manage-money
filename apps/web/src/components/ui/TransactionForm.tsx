@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { CategoryType } from "@moneyflow/shared";
+import { CategoryType, PaymentMethod } from "@moneyflow/shared";
 import {
   Calendar as CalendarIcon,
   Tag,
@@ -13,6 +13,7 @@ import api from "../../services/api";
 import { useCategories } from "../../hooks/useCategories";
 import CreateCategoryModal from "./CreateCategoryModal";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useCreditCards } from "../../hooks/useCreditCards";
 
 interface TransactionFormProps {
   initialData?: any;
@@ -34,6 +35,8 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
     note: initialData?.note || "",
     date: initialData?.date || new Date().toISOString().split("T")[0],
     slipImageUrl: initialData?.slipImageUrl || "",
+    paymentMethod: initialData?.paymentMethod || PaymentMethod.CASH,
+    creditCardId: initialData?.creditCardId?._id || initialData?.creditCardId || "",
   });
 
   const [isNextMonthCycle, setIsNextMonthCycle] = useState(
@@ -49,6 +52,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
   const queryClient = useQueryClient();
 
   const { data: categories, isLoading: isCatsLoading } = useCategories();
+  const { data: creditCards = [] } = useCreditCards();
 
   const filteredCategories =
     categories?.filter((c) => c.type === formData.type) || [];
@@ -129,6 +133,9 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
       ...formData,
       amount: Number(formData.amount),
       isNextMonthCycle,
+      ...(formData.type !== CategoryType.EXPENSE
+        ? { paymentMethod: PaymentMethod.CASH, creditCardId: undefined }
+        : {}),
     });
   };
 
@@ -295,6 +302,31 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
                 รายรับ
               </button>
             </div>
+
+            {formData.type === CategoryType.EXPENSE && (
+              <div className="space-y-3">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">
+                  วิธีชำระเงิน
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setFormData({ ...formData, paymentMethod: PaymentMethod.CASH, creditCardId: "" })}
+                    className={`rounded-2xl p-3 text-sm font-bold border-2 ${formData.paymentMethod !== PaymentMethod.CREDIT_CARD ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-gray-100 text-gray-500"}`}>
+                    เงินสด / โอน
+                  </button>
+                  <button type="button" onClick={() => setFormData({ ...formData, paymentMethod: PaymentMethod.CREDIT_CARD })}
+                    className={`rounded-2xl p-3 text-sm font-bold border-2 ${formData.paymentMethod === PaymentMethod.CREDIT_CARD ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-gray-100 text-gray-500"}`}>
+                    บัตรเครดิต
+                  </button>
+                </div>
+                {formData.paymentMethod === PaymentMethod.CREDIT_CARD && (
+                  <select value={formData.creditCardId} onChange={(e) => setFormData({ ...formData, creditCardId: e.target.value })}
+                    className="w-full bg-gray-50 rounded-2xl p-4 font-bold text-gray-700 border-none focus:ring-4 focus:ring-indigo-500/10">
+                    <option value="">เลือกบัตรเครดิต</option>
+                    {creditCards.map((card) => <option key={card._id} value={card._id}>{card.name} •••• {card.last4}</option>)}
+                  </select>
+                )}
+              </div>
+            )}
 
             {/* Amount Input */}
             <div className="relative group">

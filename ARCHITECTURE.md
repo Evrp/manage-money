@@ -91,8 +91,9 @@ The root uses npm workspaces. Build `@moneyflow/shared` before `web` and `api`:
   prefer a MongoDB transaction or a reconciliation-safe design.
 - Store storage object paths in MongoDB. Generate short-lived signed URLs only
   when returning data to a client.
-- Keep the existing unique indexes for a user category name and a monthly
-  budget. New user-scoped query patterns require a matching index review.
+- Category names are unique per user and category type, so the same name can
+  be used once for income and once for expense. Keep the monthly budget unique
+  index. New user-scoped query patterns require a matching index review.
 
 ## 4. Frontend boundaries
 
@@ -148,7 +149,26 @@ examples. The canonical names currently consumed by the code are:
 Keep `.env.example`, `apps/api/.env.example`, and `apps/web/.env.example`
 consistent whenever configuration changes.
 
-## 7. Change checklist
+## 7. Credit-card extension
+
+Credit cards are a payment instrument, not a second expense stream. `CreditCard`
+stores only user-owned display/billing settings and the last four digits;
+PAN, CVV, track data, and processor tokens are never accepted or stored.
+
+`Transaction.paymentMethod` and `creditCardId` identify a card purchase, while
+server-calculated `statementMonth`/`statementYear` identify its statement.
+The purchase remains an expense in the month it occurred, so budgets do not
+shift to the billing cycle. `CreditCardPayment` records payments against a
+statement separately; it must not create another expense transaction.
+
+The secured API is `GET/POST /credit-cards`, `PATCH /credit-cards/:id`,
+`GET /credit-cards/:id/statements?month=&year=`, and
+`POST /credit-cards/:id/payments`. Every query is scoped to the JWT user and a
+payment cannot exceed the outstanding statement balance. Statement totals are
+derived from linked transactions less payments, so they cannot drift as a
+second mutable ledger.
+
+## 8. Change checklist
 
 1. Identify the owning module and update its DTO/service/controller/schema as
    required—do not bypass a service from an unrelated module.
@@ -160,7 +180,7 @@ consistent whenever configuration changes.
 5. Run `npm run build` and the affected workspace tests/lint before merging.
 6. Recheck Vercel rewrites whenever adding a public API path or cron endpoint.
 
-## 8. Review findings to resolve
+## 9. Review findings to resolve
 
 These are implementation gaps discovered during the review, ordered by risk.
 
@@ -190,4 +210,3 @@ These are implementation gaps discovered during the review, ordered by risk.
 7. **Medium — budget consistency:** transaction and budget updates span multiple
    writes. Add transactions/reconciliation protection before relying on exact
    budget totals under concurrent requests.
-

@@ -5,6 +5,7 @@ import HomePage from './pages/HomePage';
 import TransactionsPage from './pages/TransactionsPage';
 import BudgetsPage from './pages/BudgetsPage';
 import AnalyticsPage from './pages/AnalyticsPage';
+import CreditCardsPage from './pages/CreditCardsPage';
 import { useLIFF } from './hooks/useLIFF';
 
 const queryClient = new QueryClient({
@@ -46,6 +47,7 @@ const App = () => {
           <Route path="/transactions" element={<TransactionsPage />} />
           <Route path="/budgets" element={<BudgetsPage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
+          <Route path="/credit-cards" element={<CreditCardsPage />} />
           <Route path="*" element={<HomePage />} />
         </Routes>
       </BrowserRouter>

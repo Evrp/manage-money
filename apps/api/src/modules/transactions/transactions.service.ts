@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { Transaction } from "../../schemas/transaction.schema";
@@ -6,6 +6,9 @@ import { CreateTransactionDto } from "./dto/create-transaction.dto";
 import { QueryTransactionDto } from "./dto/query-transaction.dto";
 import { BudgetsService } from "../budgets/budgets.service";
 import { FirebaseService } from "../firebase/firebase.service";
+import { CreditCardsService } from "../credit-cards/credit-cards.service";
+import { PaymentMethod } from "@moneyflow/shared";
+import { UpdateTransactionDto } from "./dto/update-transaction.dto";
 
 @Injectable()
 export class TransactionsService {
@@ -13,6 +16,7 @@ export class TransactionsService {
     @InjectModel(Transaction.name) private transactionModel: Model<Transaction>,
     private readonly budgetsService: BudgetsService,
     private readonly firebaseService: FirebaseService,
+    private readonly creditCardsService: CreditCardsService,
   ) {}
 
   async findAll(userId: string, query: QueryTransactionDto) {
@@ -103,12 +107,10 @@ export class TransactionsService {
 
   async create(userId: string, createTransactionDto: CreateTransactionDto) {
     const date = new Date(createTransactionDto.date);
-    const { month, year } = this.calculateCycleMonthYear(
-      date,
-      createTransactionDto.isNextMonthCycle,
-      createTransactionDto.targetMonth,
-      createTransactionDto.targetYear,
-    );
+    const creditCardFields = await this.resolveCreditCardFields(userId, createTransactionDto, date);
+    const { month, year } = creditCardFields.paymentMethod === PaymentMethod.CREDIT_CARD
+      ? this.calculateCycleMonthYear(date)
+      : this.calculateCycleMonthYear(date, createTransactionDto.isNextMonthCycle, createTransactionDto.targetMonth, createTransactionDto.targetYear);
 
     // Extract path from imageUrl if it is a full URL
     let slipImageUrl = createTransactionDto.slipImageUrl;
@@ -125,6 +127,7 @@ export class TransactionsService {
       date,
       month,
       year,
+      ...creditCardFields,
     });
 
     const saved = await transaction.save();
@@ -188,7 +191,7 @@ export class TransactionsService {
     return { success: true };
   }
 
-  async update(userId: string, id: string, updateData: any) {
+  async update(userId: string, id: string, updateData: UpdateTransactionDto) {
     const userObjectId = new Types.ObjectId(userId);
     const transObjectId = Types.ObjectId.isValid(id)
       ? new Types.ObjectId(id)
@@ -220,14 +223,11 @@ export class TransactionsService {
         ? updateData.targetYear
         : oldTransaction.targetYear;
 
-    const { month, year } = this.calculateCycleMonthYear(
-      targetDate,
-      isNext,
-      tMonth,
-      tYear,
-    );
-    updateData.month = month;
-    updateData.year = year;
+    const creditCardFields = await this.resolveCreditCardFields(userId, updateData, targetDate, oldTransaction);
+    const { month, year } = creditCardFields.paymentMethod === PaymentMethod.CREDIT_CARD
+      ? this.calculateCycleMonthYear(targetDate)
+      : this.calculateCycleMonthYear(targetDate, isNext, tMonth, tYear);
+    const payloadToSet: any = { ...updateData, month, year, ...creditCardFields };
 
     // 1. Revert budget for old transaction if it was an expense
     if (oldTransaction.type === "expense" && oldTransaction.categoryId) {
@@ -245,21 +245,29 @@ export class TransactionsService {
     }
 
     // 2. Update transaction
-    if (updateData.categoryId) {
-      updateData.categoryId = new Types.ObjectId(updateData.categoryId);
+    if (payloadToSet.categoryId) {
+      payloadToSet.categoryId = new Types.ObjectId(payloadToSet.categoryId);
     }
 
     // Extract path from imageUrl if it is a full URL
-    if (updateData.slipImageUrl) {
+    if (payloadToSet.slipImageUrl) {
       const path = this.firebaseService.extractPathFromUrl(
-        updateData.slipImageUrl,
+        payloadToSet.slipImageUrl,
       );
-      if (path) updateData.slipImageUrl = path;
+      if (path) payloadToSet.slipImageUrl = path;
+    }
+
+    const updateOperation: any = { $set: payloadToSet };
+    if (creditCardFields.paymentMethod !== PaymentMethod.CREDIT_CARD) {
+      delete payloadToSet.creditCardId;
+      delete payloadToSet.statementMonth;
+      delete payloadToSet.statementYear;
+      updateOperation.$unset = { creditCardId: 1, statementMonth: 1, statementYear: 1 };
     }
 
     const newTransaction = await this.transactionModel.findOneAndUpdate(
       queryFilter,
-      { $set: updateData },
+      updateOperation,
       { new: true },
     );
 
@@ -343,5 +351,21 @@ export class TransactionsService {
 
     result.net = result.income - result.expense;
     return result;
+  }
+
+  private async resolveCreditCardFields(
+    userId: string,
+    data: { paymentMethod?: PaymentMethod; creditCardId?: string },
+    date: Date,
+    existing?: Transaction,
+  ) {
+    const paymentMethod = data.paymentMethod ?? existing?.paymentMethod ?? PaymentMethod.CASH;
+    const existingCardId = existing?.creditCardId?.toString();
+    const creditCardId = data.creditCardId ?? existingCardId;
+    if (paymentMethod !== PaymentMethod.CREDIT_CARD) return { paymentMethod };
+    if (!creditCardId) throw new BadRequestException("creditCardId is required for credit-card transactions");
+    const card = await this.creditCardsService.getOwnedCard(userId, creditCardId);
+    const { statementMonth, statementYear } = this.creditCardsService.resolveStatementPeriod(card, date);
+    return { paymentMethod, creditCardId: new Types.ObjectId(creditCardId), statementMonth, statementYear };
   }
 }

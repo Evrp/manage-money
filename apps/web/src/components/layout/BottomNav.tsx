@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, List, PieChart, Target, User } from 'lucide-react';
+import { Home, List, PieChart, Target, User, CreditCard } from 'lucide-react';
 
 const BottomNav = () => {
   const navItems = [
@@ -8,6 +8,7 @@ const BottomNav = () => {
     { to: '/transactions', icon: List, label: 'รายการ' },
     { to: '/budgets', icon: Target, label: 'งบประมาณ' },
     { to: '/analytics', icon: PieChart, label: 'วิเคราะห์' },
+    { to: '/credit-cards', icon: CreditCard, label: 'บัตร' },
     { to: '/profile', icon: User, label: 'โปรไฟล์' },
   ];
 

@@ -3,3 +3,4 @@ export { CategoryType, type ICategory } from './types/category.interface';
 export { TransactionType, type ITransaction, type ISlipData } from './types/transaction.interface';
 export { type IBudget } from './types/budget.interface';
 export { SlipUploadStatus, type ISlipUpload } from './types/slip-upload.interface';
+export { PaymentMethod, CreditCardStatementStatus, type ICreditCard, type ICreditCardPayment } from './types/credit-card.interface';

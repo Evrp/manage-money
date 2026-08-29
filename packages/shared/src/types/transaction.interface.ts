@@ -4,6 +4,8 @@ export enum TransactionType {
   TRANSFER = 'transfer',
 }
 
+import { PaymentMethod } from './credit-card.interface';
+
 export interface ISlipData {
   fromBank?: string;
   toBank?: string;
@@ -28,6 +30,10 @@ export interface ITransaction {
   slipData?: ISlipData;
   isAutoImported: boolean;
   aiConfidence?: number;
+  paymentMethod?: PaymentMethod;
+  creditCardId?: string;
+  statementMonth?: number;
+  statementYear?: number;
   isNextMonthCycle?: boolean;
   targetMonth?: number;
   targetYear?: number;

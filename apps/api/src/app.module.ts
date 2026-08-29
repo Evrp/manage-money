@@ -14,6 +14,7 @@ import { WebhookModule } from "./modules/webhook/webhook.module";
 import { FirebaseModule } from "./modules/firebase/firebase.module";
 import { AdvisorModule } from "./modules/advisor/advisor.module";
 import { GeminiModule } from "./modules/gemini/gemini.module";
+import { CreditCardsModule } from "./modules/credit-cards/credit-cards.module";
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { GeminiModule } from "./modules/gemini/gemini.module";
     WebhookModule,
     AdvisorModule,
     GeminiModule,
+    CreditCardsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

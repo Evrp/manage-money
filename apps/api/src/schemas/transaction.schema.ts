@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { Document, Types } from "mongoose";
-import { TransactionType, ITransaction, ISlipData } from "@moneyflow/shared";
+import { TransactionType, ITransaction, ISlipData, PaymentMethod } from "@moneyflow/shared";
 
 @Schema({ timestamps: true })
 export class Transaction extends Document implements ITransaction {
@@ -43,6 +43,18 @@ export class Transaction extends Document implements ITransaction {
   @Prop()
   aiConfidence?: number;
 
+  @Prop({ type: String, enum: PaymentMethod, default: PaymentMethod.CASH })
+  paymentMethod: PaymentMethod;
+
+  @Prop({ type: Types.ObjectId, ref: "CreditCard" })
+  creditCardId?: string;
+
+  @Prop()
+  statementMonth?: number;
+
+  @Prop()
+  statementYear?: number;
+
   @Prop({ default: false })
   isNextMonthCycle?: boolean;
 
@@ -55,3 +67,4 @@ export class Transaction extends Document implements ITransaction {
 
 export const TransactionSchema = SchemaFactory.createForClass(Transaction);
 TransactionSchema.index({ userId: 1, year: 1, month: 1 });
+TransactionSchema.index({ userId: 1, creditCardId: 1, statementYear: 1, statementMonth: 1 });
