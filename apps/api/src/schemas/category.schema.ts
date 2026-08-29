@@ -30,4 +30,6 @@ export class Category extends Document implements ICategory {
 }
 
 export const CategorySchema = SchemaFactory.createForClass(Category);
-CategorySchema.index({ userId: 1, name: 1 }, { unique: true });
+// A name may be reused between income and expense categories, but remains
+// unique within the same type for each user.
+CategorySchema.index({ userId: 1, name: 1, type: 1 }, { unique: true });
