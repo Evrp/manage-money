@@ -42,6 +42,12 @@ export class UpdateCreditCardDto {
   paymentDueDay?: number;
 
   @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  annualInterestRate?: number;
+
+  @IsOptional()
   @IsHexColor()
   color?: string;
 

@@ -1,5 +1,6 @@
 import {
   IsDateString,
+  IsEnum,
   IsInt,
   IsNotEmpty,
   IsNumber,
@@ -8,6 +9,7 @@ import {
   Max,
   Min,
 } from "class-validator";
+import { CreditCardPaymentMode } from "@moneyflow/shared";
 
 export class CreateCreditCardPaymentDto {
   @IsInt()
@@ -22,6 +24,11 @@ export class CreateCreditCardPaymentDto {
   @IsNumber()
   @Min(0.01)
   amount: number;
+
+  @IsNotEmpty()
+  @IsString()
+  @IsEnum(CreditCardPaymentMode)
+  mode: CreditCardPaymentMode;
 
   @IsDateString()
   paidAt: string;

@@ -2,6 +2,7 @@ import { BadRequestException } from "@nestjs/common";
 import { Types } from "mongoose";
 import { CreditCardsService } from "./credit-cards.service";
 import { CreditCard } from "../../schemas/credit-card.schema";
+import { CreditCardPaymentMode } from "@moneyflow/shared";
 
 describe("CreditCardsService", () => {
   const card = {
@@ -14,6 +15,7 @@ describe("CreditCardsService", () => {
   const service = new CreditCardsService(
     {} as any,
     paymentModel as any,
+    {} as any,
     {} as any,
   );
 
@@ -37,17 +39,26 @@ describe("CreditCardsService", () => {
     ).toEqual({ statementMonth: 1, statementYear: 2027 });
   });
 
+  it("calculates daily interest from APR and overdue days", () => {
+    expect(service.calculateAccruedInterest(10_000, 25, 10)).toBeCloseTo(
+      68.49,
+      2,
+    );
+    expect(service.calculateAccruedInterest(10_000, 25, 0)).toBe(0);
+  });
+
   it("rejects a payment greater than the statement balance", async () => {
     jest.spyOn(service, "getOwnedCard").mockResolvedValue(card as any);
     jest
       .spyOn(service as any, "buildStatement")
-      .mockResolvedValue({ outstandingAmount: 100 });
+      .mockResolvedValue({ outstandingAmount: 100, totalDue: 100 });
 
     await expect(
       service.recordPayment("507f1f77bcf86cd799439011", card._id.toString(), {
         statementMonth: 8,
         statementYear: 2026,
         amount: 100.01,
+        mode: CreditCardPaymentMode.FULL,
         paidAt: "2026-09-01",
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
@@ -57,9 +68,11 @@ describe("CreditCardsService", () => {
 
   it("records an in-range payment without creating an expense transaction", async () => {
     jest.spyOn(service, "getOwnedCard").mockResolvedValue(card as any);
-    jest
-      .spyOn(service as any, "buildStatement")
-      .mockResolvedValue({ outstandingAmount: 100 });
+    jest.spyOn(service as any, "buildStatement").mockResolvedValue({
+      outstandingAmount: 100,
+      totalDue: 100,
+      accruedInterest: 0,
+    });
     paymentModel.create.mockResolvedValue({ _id: "payment-1" });
 
     await service.recordPayment(
@@ -69,6 +82,7 @@ describe("CreditCardsService", () => {
         statementMonth: 8,
         statementYear: 2026,
         amount: 100,
+        mode: CreditCardPaymentMode.FULL,
         paidAt: "2026-09-01",
       },
     );
@@ -78,6 +92,7 @@ describe("CreditCardsService", () => {
         amount: 100,
         creditCardId: card._id,
         paidAt: expect.any(Date),
+        mode: CreditCardPaymentMode.FULL,
       }),
     );
   });

@@ -164,9 +164,17 @@ statement separately; it must not create another expense transaction.
 The secured API is `GET/POST /credit-cards`, `PATCH /credit-cards/:id`,
 `GET /credit-cards/:id/statements?month=&year=`, and
 `POST /credit-cards/:id/payments`. Every query is scoped to the JWT user and a
-payment cannot exceed the outstanding statement balance. Statement totals are
+payment cannot exceed the outstanding statement balance. Payments have an
+explicit `full` or `partial` mode: full must settle the exact remaining balance;
+partial must be strictly less and carries the remainder forward. Statement totals are
 derived from linked transactions less payments, so they cannot drift as a
 second mutable ledger.
+
+When a statement is past due, the API exposes an estimate using the configured
+annual rate (default 25%): `principal × (annualRate / 100 / 365) × overdueDays`.
+The UI labels this clearly as an estimate because banks may use average daily
+balance, grace-period, fee, or payment-allocation rules that require the actual
+issuer statement to calculate exactly.
 
 ## 8. Change checklist
 

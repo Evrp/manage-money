@@ -36,6 +36,11 @@ export class CreateCreditCardDto {
   @Max(31)
   paymentDueDay: number;
 
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  annualInterestRate: number = 25;
+
   @IsHexColor()
   color: string = "#1A1F36";
 }

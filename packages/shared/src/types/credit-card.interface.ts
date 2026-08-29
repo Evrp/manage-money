@@ -10,6 +10,11 @@ export enum CreditCardStatementStatus {
   PAID = 'paid',
 }
 
+export enum CreditCardPaymentMode {
+  FULL = 'full',
+  PARTIAL = 'partial',
+}
+
 export interface ICreditCard {
   _id?: any;
   userId: string;
@@ -19,6 +24,7 @@ export interface ICreditCard {
   creditLimit: number;
   statementClosingDay: number;
   paymentDueDay: number;
+  annualInterestRate: number;
   color: string;
   isActive: boolean;
   createdAt?: Date;
@@ -34,6 +40,9 @@ export interface ICreditCardPayment {
   amount: number;
   paidAt: Date | string;
   note?: string;
+  mode: CreditCardPaymentMode;
+  principalAmount?: number;
+  interestAmount?: number;
   createdAt?: Date;
   updatedAt?: Date;
 }

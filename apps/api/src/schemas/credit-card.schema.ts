@@ -26,6 +26,9 @@ export class CreditCard extends Document implements ICreditCard {
   @Prop({ required: true, min: 1, max: 31 })
   paymentDueDay: number;
 
+  @Prop({ required: true, min: 0, max: 100, default: 25 })
+  annualInterestRate: number;
+
   @Prop({ default: "#1A1F36" })
   color: string;
 

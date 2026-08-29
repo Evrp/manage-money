@@ -8,7 +8,12 @@ import { Model, Types } from "mongoose";
 import { CreditCard } from "../../schemas/credit-card.schema";
 import { CreditCardPayment } from "../../schemas/credit-card-payment.schema";
 import { Transaction } from "../../schemas/transaction.schema";
-import { CreditCardStatementStatus, PaymentMethod } from "@moneyflow/shared";
+import { CreditCardStatement } from "../../schemas/credit-card-statement.schema";
+import {
+  CreditCardPaymentMode,
+  CreditCardStatementStatus,
+  PaymentMethod,
+} from "@moneyflow/shared";
 import { CreateCreditCardDto } from "./dto/create-credit-card.dto";
 import { UpdateCreditCardDto } from "./dto/update-credit-card.dto";
 import { CreateCreditCardPaymentDto } from "./dto/create-credit-card-payment.dto";
@@ -20,6 +25,8 @@ export class CreditCardsService {
     @InjectModel(CreditCardPayment.name)
     private creditCardPaymentModel: Model<CreditCardPayment>,
     @InjectModel(Transaction.name) private transactionModel: Model<Transaction>,
+    @InjectModel(CreditCardStatement.name)
+    private creditCardStatementModel: Model<CreditCardStatement>,
   ) {}
 
   async findAll(userId: string) {
@@ -95,7 +102,23 @@ export class CreditCardsService {
       dto.statementYear,
     );
 
-    if (dto.amount > statement.outstandingAmount) {
+    if (
+      dto.mode === CreditCardPaymentMode.FULL &&
+      Math.abs(dto.amount - statement.totalDue) > 0.01
+    ) {
+      throw new BadRequestException(
+        "A full payment must equal the total amount due",
+      );
+    }
+    if (
+      dto.mode === CreditCardPaymentMode.PARTIAL &&
+      dto.amount >= statement.totalDue
+    ) {
+      throw new BadRequestException(
+        "A partial payment must be less than the total amount due",
+      );
+    }
+    if (dto.amount > statement.totalDue) {
       throw new BadRequestException(
         "Payment amount exceeds the outstanding statement balance",
       );
@@ -106,7 +129,30 @@ export class CreditCardsService {
       userId: new Types.ObjectId(userId),
       creditCardId: card._id,
       paidAt: new Date(dto.paidAt),
+      mode: dto.mode,
+      interestAmount: Math.min(dto.amount, statement.accruedInterest),
+      principalAmount: Math.max(0, dto.amount - statement.accruedInterest),
     });
+  }
+
+  async updateStatementDueDate(
+    userId: string,
+    cardId: string,
+    month: number,
+    year: number,
+    dueDate: string,
+  ) {
+    const card = await this.getOwnedCard(userId, cardId);
+    return this.creditCardStatementModel.findOneAndUpdate(
+      {
+        userId: this.userFilter(userId),
+        creditCardId: this.cardFilter(card._id.toString()),
+        statementMonth: month,
+        statementYear: year,
+      },
+      { $set: { dueDate: new Date(dueDate) } },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
   }
 
   private async buildStatement(
@@ -129,6 +175,7 @@ export class CreditCardsService {
       paymentTotals,
       cardTransactionTotals,
       cardPaymentTotals,
+      statementMeta,
       transactions,
     ] = await Promise.all([
       this.transactionModel.aggregate([
@@ -144,7 +191,15 @@ export class CreditCardsService {
             statementYear: Number(year),
           },
         },
-        { $group: { _id: null, amount: { $sum: "$amount" } } },
+        {
+          $group: {
+            _id: null,
+            amount: { $sum: "$amount" },
+            principalAmount: {
+              $sum: { $ifNull: ["$principalAmount", "$amount"] },
+            },
+          },
+        },
       ]),
       this.transactionModel.aggregate([
         {
@@ -165,6 +220,14 @@ export class CreditCardsService {
         },
         { $group: { _id: null, amount: { $sum: "$amount" } } },
       ]),
+      this.creditCardStatementModel
+        .findOne({
+          userId: this.userFilter(userId),
+          creditCardId: this.cardFilter(card._id.toString()),
+          statementMonth: Number(month),
+          statementYear: Number(year),
+        })
+        .lean(),
       this.transactionModel
         .find(match)
         .populate("categoryId")
@@ -174,14 +237,29 @@ export class CreditCardsService {
 
     const totalAmount = transactionTotals[0]?.amount || 0;
     const paidAmount = paymentTotals[0]?.amount || 0;
-    const outstandingAmount = Math.max(0, totalAmount - paidAmount);
+    const principalPaid = paymentTotals[0]?.principalAmount || 0;
+    const outstandingAmount = Math.max(0, totalAmount - principalPaid);
     const totalCardOutstanding = Math.max(
       0,
       (cardTransactionTotals[0]?.amount || 0) -
         (cardPaymentTotals[0]?.amount || 0),
     );
-    const dueDate = this.getDueDate(year, month, card.paymentDueDay);
+    const dueDate =
+      statementMeta?.dueDate ||
+      this.getDueDate(year, month, card.paymentDueDay);
     const now = new Date();
+    const daysOverdue = Math.max(
+      0,
+      Math.floor((now.getTime() - dueDate.getTime()) / 86400000),
+    );
+    const annualInterestRate = card.annualInterestRate ?? 25;
+    const dailyInterestRate = annualInterestRate / 100 / 365;
+    const accruedInterest = this.calculateAccruedInterest(
+      outstandingAmount,
+      annualInterestRate,
+      daysOverdue,
+    );
+    const totalDue = outstandingAmount + accruedInterest;
     const status =
       outstandingAmount === 0
         ? CreditCardStatementStatus.PAID
@@ -198,6 +276,11 @@ export class CreditCardsService {
       paidAmount,
       outstandingAmount,
       availableCredit: Math.max(0, card.creditLimit - totalCardOutstanding),
+      annualInterestRate,
+      dailyInterestRate,
+      daysOverdue,
+      accruedInterest,
+      totalDue,
       status,
       transactions,
     };
@@ -215,6 +298,17 @@ export class CreditCardsService {
       new Date(Date.UTC(dueYear, dueMonth + 1, 0)).getUTCDate(),
     );
     return new Date(Date.UTC(dueYear, dueMonth, finalDay, 23, 59, 59, 999));
+  }
+
+  calculateAccruedInterest(
+    principal: number,
+    annualRate: number,
+    days: number,
+  ) {
+    return (
+      ((Math.max(0, principal) * (Math.max(0, annualRate) / 100)) / 365) *
+      Math.max(0, days)
+    );
   }
 
   private asObjectId(id: string) {

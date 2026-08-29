@@ -9,6 +9,7 @@ export interface CreditCard {
   creditLimit: number;
   statementClosingDay: number;
   paymentDueDay: number;
+  annualInterestRate: number;
   color: string;
   isActive: boolean;
 }

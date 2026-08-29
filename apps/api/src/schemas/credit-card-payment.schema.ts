@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { Document, Types } from "mongoose";
-import { ICreditCardPayment } from "@moneyflow/shared";
+import { CreditCardPaymentMode, ICreditCardPayment } from "@moneyflow/shared";
 
 @Schema({ timestamps: true })
 export class CreditCardPayment extends Document implements ICreditCardPayment {
@@ -29,6 +29,15 @@ export class CreditCardPayment extends Document implements ICreditCardPayment {
 
   @Prop({ trim: true, maxlength: 500 })
   note?: string;
+
+  @Prop({ type: String, enum: CreditCardPaymentMode, required: true })
+  mode: CreditCardPaymentMode;
+
+  @Prop({ min: 0 })
+  principalAmount?: number;
+
+  @Prop({ min: 0 })
+  interestAmount?: number;
 }
 
 export const CreditCardPaymentSchema =

@@ -11,6 +11,10 @@ import {
   Transaction,
   TransactionSchema,
 } from "../../schemas/transaction.schema";
+import {
+  CreditCardStatement,
+  CreditCardStatementSchema,
+} from "../../schemas/credit-card-statement.schema";
 
 @Module({
   imports: [
@@ -18,6 +22,7 @@ import {
       { name: CreditCard.name, schema: CreditCardSchema },
       { name: CreditCardPayment.name, schema: CreditCardPaymentSchema },
       { name: Transaction.name, schema: TransactionSchema },
+      { name: CreditCardStatement.name, schema: CreditCardStatementSchema },
     ]),
   ],
   controllers: [CreditCardsController],
