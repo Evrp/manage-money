@@ -34,6 +34,14 @@ export interface ITransaction {
   creditCardId?: string;
   statementMonth?: number;
   statementYear?: number;
+  statementDueDate?: Date | string;
+  documentType?: string;
+  cashAdvanceAmount?: number;
+  feeAmount?: number;
+  receiptInterestRate?: number;
+  minimumPaymentRate?: number;
+  minimumPaymentAmount?: number;
+  referenceNumber?: string;
   isNextMonthCycle?: boolean;
   targetMonth?: number;
   targetYear?: number;

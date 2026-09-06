@@ -55,6 +55,17 @@ export class Transaction extends Document implements ITransaction {
   @Prop()
   statementYear?: number;
 
+  @Prop()
+  statementDueDate?: Date;
+
+  @Prop() documentType?: string;
+  @Prop() cashAdvanceAmount?: number;
+  @Prop() feeAmount?: number;
+  @Prop() receiptInterestRate?: number;
+  @Prop() minimumPaymentRate?: number;
+  @Prop() minimumPaymentAmount?: number;
+  @Prop() referenceNumber?: string;
+
   @Prop({ default: false })
   isNextMonthCycle?: boolean;
 

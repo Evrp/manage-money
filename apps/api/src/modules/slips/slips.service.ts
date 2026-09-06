@@ -169,10 +169,11 @@ export class SlipsService {
 
   private async extractWithGemini(base64Image: string, mimeType: string) {
     const systemPrompt =
-      "You are a Thai bank transaction slip OCR expert. Extract data accurately.";
+      "You are a Thai bank and credit-card receipt OCR expert. Extract data accurately. Never invent unreadable values; use null and lower confidence.";
     const userPrompt = `Extract the following from this Thai bank slip image and return ONLY valid JSON:
     {
-      "transactionType": "transfer|payment|deposit|withdrawal",
+      "documentType": "bank_transfer|credit_card_statement|cash_advance|unknown",
+      "transactionType": "transfer|payment|deposit|withdrawal|cash_advance",
       "amount": number,
       "currency": "THB",
       "fromBank": "bank name or null",
@@ -182,10 +183,17 @@ export class SlipsService {
       "referenceNo": "reference number or null",
       "transactionDate": "YYYY-MM-DD or null",
       "transactionTime": "HH:mm or null",
+      "creditCardLast4": "last 4 digits of card or null",
+      "cashAdvanceAmount": "cash received/withdrawn amount or null",
+      "feeAmount": "one-time fee amount or null",
+      "receiptInterestRate": "annual interest rate printed on receipt or null",
+      "minimumPaymentRate": "minimum payment percentage or null",
+      "minimumPaymentAmount": "minimum payment amount or null",
+      "statementDueDate": "YYYY-MM-DD or null",
       "suggestedCategory": "one of: ค่าเช่า|อาหาร|ขนส่ง|ช้อปปิ้ง|สุขภาพ|บันเทิง|การศึกษา|สาธารณูปโภค|โอนเงิน|รายได้|อื่นๆ",
       "confidence": 0.0-1.0
     }
-    If you cannot read the image clearly, return confidence below 0.5.`;
+    Convert Thai Buddhist years (พ.ศ.) to Gregorian years. For a credit-card receipt, prefer the printed due date and rate over defaults. If you cannot read the image clearly, return confidence below 0.5.`;
 
     try {
       const result = await this.geminiService.generateContent(

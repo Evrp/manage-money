@@ -131,6 +131,18 @@ export class TransactionsService {
     });
 
     const saved = await transaction.save();
+    if (
+      creditCardFields.paymentMethod === PaymentMethod.CREDIT_CARD &&
+      createTransactionDto.statementDueDate
+    ) {
+      await this.creditCardsService.updateStatementDueDate(
+        userId,
+        createTransactionDto.creditCardId as string,
+        (creditCardFields as any).statementMonth,
+        (creditCardFields as any).statementYear,
+        createTransactionDto.statementDueDate,
+      );
+    }
     const categoryId = saved.categoryId.toString();
 
     // Populate directly on the document for immediate consistency
@@ -228,6 +240,7 @@ export class TransactionsService {
       ? this.calculateCycleMonthYear(targetDate)
       : this.calculateCycleMonthYear(targetDate, isNext, tMonth, tYear);
     const payloadToSet: any = { ...updateData, month, year, ...creditCardFields };
+    delete payloadToSet.statementDueDate;
 
     // 1. Revert budget for old transaction if it was an expense
     if (oldTransaction.type === "expense" && oldTransaction.categoryId) {
@@ -270,6 +283,20 @@ export class TransactionsService {
       updateOperation,
       { new: true },
     );
+
+    if (
+      newTransaction &&
+      creditCardFields.paymentMethod === PaymentMethod.CREDIT_CARD &&
+      updateData.statementDueDate
+    ) {
+      await this.creditCardsService.updateStatementDueDate(
+        userId,
+        (creditCardFields.creditCardId as Types.ObjectId).toString(),
+        (creditCardFields as any).statementMonth,
+        (creditCardFields as any).statementYear,
+        updateData.statementDueDate,
+      );
+    }
 
     // 3. Apply budget for new transaction if it is an expense
     if (

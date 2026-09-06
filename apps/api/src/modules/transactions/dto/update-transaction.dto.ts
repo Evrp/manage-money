@@ -25,4 +25,6 @@ export class UpdateTransactionDto {
   @ValidateIf((dto) => dto.paymentMethod === PaymentMethod.CREDIT_CARD)
   @IsMongoId()
   creditCardId?: string;
+  @ValidateIf((dto) => dto.paymentMethod === PaymentMethod.CREDIT_CARD)
+  @IsOptional() @IsDateString() statementDueDate?: string;
 }

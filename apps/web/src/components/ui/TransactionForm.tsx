@@ -37,6 +37,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
     slipImageUrl: initialData?.slipImageUrl || "",
     paymentMethod: initialData?.paymentMethod || PaymentMethod.CASH,
     creditCardId: initialData?.creditCardId?._id || initialData?.creditCardId || "",
+    statementDueDate: initialData?.statementDueDate ? new Date(initialData.statementDueDate).toISOString().slice(0, 10) : "",
   });
 
   const [isNextMonthCycle, setIsNextMonthCycle] = useState(
@@ -319,11 +320,11 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
                   </button>
                 </div>
                 {formData.paymentMethod === PaymentMethod.CREDIT_CARD && (
-                  <select value={formData.creditCardId} onChange={(e) => setFormData({ ...formData, creditCardId: e.target.value })}
+                  <div className="space-y-2"><select value={formData.creditCardId} onChange={(e) => setFormData({ ...formData, creditCardId: e.target.value })}
                     className="w-full bg-gray-50 rounded-2xl p-4 font-bold text-gray-700 border-none focus:ring-4 focus:ring-indigo-500/10">
                     <option value="">เลือกบัตรเครดิต</option>
                     {creditCards.map((card) => <option key={card._id} value={card._id}>{card.name} •••• {card.last4}</option>)}
-                  </select>
+                  </select><label className="block text-xs font-bold text-gray-400 px-1">วันครบกำหนดตามใบแจ้งยอด (ถ้ามี)</label><input type="date" value={formData.statementDueDate} onChange={(e) => setFormData({ ...formData, statementDueDate: e.target.value })} className="w-full bg-gray-50 rounded-2xl p-4 font-bold text-gray-700" /></div>
                 )}
               </div>
             )}

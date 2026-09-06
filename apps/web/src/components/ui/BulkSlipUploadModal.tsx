@@ -16,6 +16,8 @@ import api from "../../services/api";
 import { useCategories } from "../../hooks/useCategories";
 import { useQueryClient } from "@tanstack/react-query";
 import CreateCategoryModal from "./CreateCategoryModal";
+import { useCreditCards } from "../../hooks/useCreditCards";
+import { PaymentMethod } from "@moneyflow/shared";
 
 export interface SlipItemState {
   id: string; // unique local ID
@@ -33,6 +35,15 @@ export interface SlipItemState {
     isNextMonthCycle?: boolean;
     suggestedCategory?: string;
     slipImageUrl?: string;
+    documentType?: string;
+    creditCardId?: string;
+    creditCardLast4?: string;
+    feeAmount?: string;
+    receiptInterestRate?: string;
+    minimumPaymentRate?: string;
+    minimumPaymentAmount?: string;
+    statementDueDate?: string;
+    referenceNumber?: string;
   };
 }
 
@@ -49,6 +60,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
 }) => {
   const queryClient = useQueryClient();
   const { data: categories = [] } = useCategories();
+  const { data: creditCards = [] } = useCreditCards();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [items, setItems] = useState<SlipItemState[]>([]);
@@ -110,7 +122,11 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
         prev.map((i) => {
           if (i.id !== item.id) return i;
           const extracted = data.extractedData || {};
-          const isIncome = extracted.transactionType === "income";
+          const isCreditReceipt = ["credit_card_statement", "cash_advance"].includes(extracted.documentType) || extracted.transactionType === "cash_advance";
+          const matchedCard = isCreditReceipt && extracted.creditCardLast4
+            ? creditCards.find((card: any) => card.last4 === String(extracted.creditCardLast4).slice(-4))
+            : undefined;
+          const isIncome = extracted.transactionType === "income" && !isCreditReceipt;
           const slipDate = extracted.transactionDate || i.formData.date;
           const isEndOfMonth = slipDate ? new Date(slipDate).getDate() >= 25 : false;
 
@@ -120,10 +136,19 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
             slipId: data.id,
             formData: {
               ...i.formData,
-              amount: extracted.amount ? String(extracted.amount) : "",
+              amount: (extracted.cashAdvanceAmount || extracted.amount) ? String(extracted.cashAdvanceAmount || extracted.amount) : "",
               date: slipDate,
               note: extracted.toName || extracted.toBank || "",
               type: isIncome ? "income" : "expense",
+              documentType: extracted.documentType,
+              creditCardId: matchedCard?._id || "",
+              creditCardLast4: extracted.creditCardLast4 || "",
+              feeAmount: extracted.feeAmount != null ? String(extracted.feeAmount) : "",
+              receiptInterestRate: extracted.receiptInterestRate != null ? String(extracted.receiptInterestRate) : "",
+              minimumPaymentRate: extracted.minimumPaymentRate != null ? String(extracted.minimumPaymentRate) : "",
+              minimumPaymentAmount: extracted.minimumPaymentAmount != null ? String(extracted.minimumPaymentAmount) : "",
+              statementDueDate: extracted.statementDueDate || "",
+              referenceNumber: extracted.referenceNo || "",
               isNextMonthCycle: isEndOfMonth,
               suggestedCategory: suggested,
               categoryId: matchedCategoryId || i.formData.categoryId,
@@ -255,7 +280,8 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
       item.status === "success" &&
       item.slipId &&
       item.formData.amount &&
-      item.formData.categoryId,
+      item.formData.categoryId &&
+      (item.formData.documentType === undefined || item.formData.documentType === "bank_transfer" || !!item.formData.creditCardId),
   );
 
   const uploadingCount = items.filter((i) => i.status === "uploading").length;
@@ -279,6 +305,18 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
           date: item.formData.date,
           isNextMonthCycle: item.formData.isNextMonthCycle,
           slipImageUrl: item.formData.slipImageUrl,
+          ...(item.formData.creditCardId ? {
+            paymentMethod: PaymentMethod.CREDIT_CARD,
+            creditCardId: item.formData.creditCardId,
+            statementDueDate: item.formData.statementDueDate || undefined,
+          } : {}),
+          documentType: item.formData.documentType,
+          cashAdvanceAmount: item.formData.documentType === "cash_advance" ? Number(item.formData.amount) : undefined,
+          feeAmount: item.formData.feeAmount ? Number(item.formData.feeAmount) : undefined,
+          receiptInterestRate: item.formData.receiptInterestRate ? Number(item.formData.receiptInterestRate) : undefined,
+          minimumPaymentRate: item.formData.minimumPaymentRate ? Number(item.formData.minimumPaymentRate) : undefined,
+          minimumPaymentAmount: item.formData.minimumPaymentAmount ? Number(item.formData.minimumPaymentAmount) : undefined,
+          referenceNumber: item.formData.referenceNumber || undefined,
         },
       }));
 
@@ -523,6 +561,28 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                             <span className="hidden sm:inline">ลบ</span>
                           </button>
                         </div>
+
+                        {item.formData.documentType && item.formData.documentType !== "bank_transfer" && (
+                          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-black text-amber-900">ตรวจพบใบเสร็จบัตรเครดิต</span>
+                              <span className="text-[10px] font-bold text-amber-700">{item.formData.documentType === "cash_advance" ? "เบิกถอนเงินสด" : "ใบแจ้งยอด"}</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-amber-900">
+                              <span>บัตร ••••{item.formData.creditCardLast4 || "ไม่พบ"}</span>
+                              <span>ค่าธรรมเนียม ฿{Number(item.formData.feeAmount || 0).toLocaleString()}</span>
+                              <span>ดอกเบี้ย {item.formData.receiptInterestRate || "-"}% ต่อปี</span>
+                              <span>ขั้นต่ำ {item.formData.minimumPaymentRate || "-"}%</span>
+                            </div>
+                            <label className="block text-[10px] font-bold text-amber-800">วันครบกำหนดจากใบเสร็จ</label>
+                            <input type="date" value={item.formData.statementDueDate || ""} onChange={(e) => handleUpdateItemForm(item.id, "statementDueDate", e.target.value)} className="w-full rounded-xl bg-white border border-amber-200 p-2 text-xs font-bold" />
+                            <select value={item.formData.creditCardId || ""} onChange={(e) => handleUpdateItemForm(item.id, "creditCardId", e.target.value)} className="w-full rounded-xl bg-white border border-amber-200 p-2 text-xs font-bold">
+                              <option value="">เลือกบัตรเครดิตเพื่อจับคู่</option>
+                              {creditCards.map((card: any) => <option key={card._id} value={card._id}>{card.name} ••••{card.last4}</option>)}
+                            </select>
+                            {!item.formData.creditCardId && <p className="text-[10px] font-bold text-red-600">กรุณาเลือกบัตรก่อนยืนยันรายการ</p>}
+                          </div>
+                        )}
 
                         {/* Amount & Type Input Row */}
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

@@ -145,8 +145,10 @@ export class CreditCardsService {
     const card = await this.getOwnedCard(userId, cardId);
     return this.creditCardStatementModel.findOneAndUpdate(
       {
-        userId: this.userFilter(userId),
-        creditCardId: this.cardFilter(card._id.toString()),
+        // Do not use $in here: MongoDB cannot derive upsert fields from an
+        // operator expression and would insert null user/card keys.
+        userId: new Types.ObjectId(userId),
+        creditCardId: card._id,
         statementMonth: month,
         statementYear: year,
       },
@@ -180,7 +182,7 @@ export class CreditCardsService {
     ] = await Promise.all([
       this.transactionModel.aggregate([
         { $match: match },
-        { $group: { _id: null, amount: { $sum: "$amount" } } },
+        { $group: { _id: null, amount: { $sum: { $add: ["$amount", { $ifNull: ["$feeAmount", 0] }] } } } },
       ]),
       this.creditCardPaymentModel.aggregate([
         {
@@ -209,7 +211,7 @@ export class CreditCardsService {
             paymentMethod: PaymentMethod.CREDIT_CARD,
           },
         },
-        { $group: { _id: null, amount: { $sum: "$amount" } } },
+        { $group: { _id: null, amount: { $sum: { $add: ["$amount", { $ifNull: ["$feeAmount", 0] }] } } } },
       ]),
       this.creditCardPaymentModel.aggregate([
         {

@@ -16,3 +16,16 @@ export interface ISlipUpload {
   processedAt?: Date;
   createdAt?: Date;
 }
+
+export interface IExtractedCreditCardReceipt {
+  documentType?: 'bank_transfer' | 'credit_card_statement' | 'cash_advance' | 'unknown';
+  transactionType?: string;
+  creditCardLast4?: string;
+  cashAdvanceAmount?: number;
+  feeAmount?: number;
+  receiptInterestRate?: number;
+  minimumPaymentRate?: number;
+  minimumPaymentAmount?: number;
+  statementDueDate?: string;
+  confidence?: number;
+}

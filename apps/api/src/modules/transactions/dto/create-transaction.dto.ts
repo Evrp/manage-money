@@ -55,4 +55,15 @@ export class CreateTransactionDto {
   @IsOptional() @IsEnum(PaymentMethod) paymentMethod?: PaymentMethod;
   @ValidateIf((dto) => dto.paymentMethod === PaymentMethod.CREDIT_CARD)
   @IsNotEmpty() @IsMongoId() creditCardId?: string;
+
+  @ValidateIf((dto) => dto.paymentMethod === PaymentMethod.CREDIT_CARD)
+  @IsOptional() @IsDateString() statementDueDate?: string;
+
+  @IsOptional() @IsString() documentType?: string;
+  @IsOptional() @IsNumber() cashAdvanceAmount?: number;
+  @IsOptional() @IsNumber() feeAmount?: number;
+  @IsOptional() @IsNumber() receiptInterestRate?: number;
+  @IsOptional() @IsNumber() minimumPaymentRate?: number;
+  @IsOptional() @IsNumber() minimumPaymentAmount?: number;
+  @IsOptional() @IsString() referenceNumber?: string;
 }

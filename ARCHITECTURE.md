@@ -176,7 +176,18 @@ The UI labels this clearly as an estimate because banks may use average daily
 balance, grace-period, fee, or payment-allocation rules that require the actual
 issuer statement to calculate exactly.
 
-## 8. Change checklist
+## 8. Credit-card receipt OCR flow
+
+Slip OCR classifies documents as `bank_transfer`, `credit_card_statement`, or
+`cash_advance`. Credit-card receipts are shown in a confirmation step before
+creating a transaction. The extracted card last four digits are matched against
+the user's cards; an unmatched receipt cannot be confirmed until a card is
+selected. Due date, receipt APR, minimum-payment rate, fee, and reference number
+remain editable and are stored with the transaction. Receipt APR/fees override
+card defaults for display and statement calculations. Never store full card
+numbers, CVV, or unredacted sensitive OCR text.
+
+## 9. Change checklist
 
 1. Identify the owning module and update its DTO/service/controller/schema as
    required—do not bypass a service from an unrelated module.
@@ -188,7 +199,7 @@ issuer statement to calculate exactly.
 5. Run `npm run build` and the affected workspace tests/lint before merging.
 6. Recheck Vercel rewrites whenever adding a public API path or cron endpoint.
 
-## 9. Review findings to resolve
+## 10. Review findings to resolve
 
 These are implementation gaps discovered during the review, ordered by risk.
 
