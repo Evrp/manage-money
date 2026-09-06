@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import HomePage from './pages/HomePage';
@@ -6,7 +6,9 @@ import TransactionsPage from './pages/TransactionsPage';
 import BudgetsPage from './pages/BudgetsPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import CreditCardsPage from './pages/CreditCardsPage';
+import ProfilePage from './pages/ProfilePage';
 import { useLIFF } from './hooks/useLIFF';
+import { useAuthStore } from './store/auth.store';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,6 +22,12 @@ const queryClient = new QueryClient({
 const App = () => {
   // Replace with actual LIFF ID from env
   const { isReady, error } = useLIFF(import.meta.env.VITE_LIFF_ID || '');
+  const themePreference = useAuthStore((state) => state.themePreference);
+  const userTheme = useAuthStore((state) => state.user?.theme);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = themePreference || userTheme || 'light';
+  }, [themePreference, userTheme]);
 
   if (error) {
     return (
@@ -48,6 +56,7 @@ const App = () => {
           <Route path="/budgets" element={<BudgetsPage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/credit-cards" element={<CreditCardsPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
           <Route path="*" element={<HomePage />} />
         </Routes>
       </BrowserRouter>
