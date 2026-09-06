@@ -32,7 +32,7 @@ const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({ onClose, onSu
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+      <div className="bg-surface w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
         <div className="p-8">
           <div className="flex justify-between items-center mb-6">
             <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">สร้างหมวดหมู่ใหม่</span>

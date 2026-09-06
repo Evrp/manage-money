@@ -454,7 +454,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                 return (
                   <div
                     key={item.id}
-                    className="bg-white rounded-3xl p-4 sm:p-6 border border-gray-200 shadow-sm relative transition-all hover:shadow-md"
+                    className="bg-surface rounded-3xl p-4 sm:p-6 border border-gray-200 shadow-sm relative transition-all hover:shadow-md"
                   >
                     {/* Main Flex Layout: Image Prominent on Left/Top, Form on Right */}
                     <div className="flex flex-col sm:flex-row items-stretch gap-5">
@@ -575,8 +575,8 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                               <span>ขั้นต่ำ {item.formData.minimumPaymentRate || "-"}%</span>
                             </div>
                             <label className="block text-[10px] font-bold text-amber-800">วันครบกำหนดจากใบเสร็จ</label>
-                            <input type="date" value={item.formData.statementDueDate || ""} onChange={(e) => handleUpdateItemForm(item.id, "statementDueDate", e.target.value)} className="w-full rounded-xl bg-white border border-amber-200 p-2 text-xs font-bold" />
-                            <select value={item.formData.creditCardId || ""} onChange={(e) => handleUpdateItemForm(item.id, "creditCardId", e.target.value)} className="w-full rounded-xl bg-white border border-amber-200 p-2 text-xs font-bold">
+                            <input type="date" value={item.formData.statementDueDate || ""} onChange={(e) => handleUpdateItemForm(item.id, "statementDueDate", e.target.value)} className="w-full rounded-xl bg-surface border border-amber-200 p-2 text-xs font-bold" />
+                            <select value={item.formData.creditCardId || ""} onChange={(e) => handleUpdateItemForm(item.id, "creditCardId", e.target.value)} className="w-full rounded-xl bg-surface border border-amber-200 p-2 text-xs font-bold">
                               <option value="">เลือกบัตรเครดิตเพื่อจับคู่</option>
                               {creditCards.map((card: any) => <option key={card._id} value={card._id}>{card.name} ••••{card.last4}</option>)}
                             </select>
@@ -599,7 +599,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                               }
                               className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
                                 item.formData.type === "expense"
-                                  ? "bg-white text-red-500 shadow-sm"
+                                  ? "bg-surface text-red-500 shadow-sm"
                                   : "text-gray-400 hover:text-gray-600"
                               }`}
                             >
@@ -616,7 +616,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                               }
                               className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
                                 item.formData.type === "income"
-                                  ? "bg-white text-emerald-500 shadow-sm"
+                                  ? "bg-surface text-emerald-500 shadow-sm"
                                   : "text-gray-400 hover:text-gray-600"
                               }`}
                             >
@@ -763,7 +763,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                                     : "bg-gray-300 justify-start"
                                 }`}
                               >
-                                <span className="bg-white w-4 h-4 rounded-full shadow" />
+                                <span className="bg-surface w-4 h-4 rounded-full shadow" />
                               </button>
                             </div>
                           );
@@ -788,7 +788,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
           {/* Footer Summary & Action Bar */}
           <div className="pt-4 border-t border-gray-200 shrink-0 space-y-4">
             {/* Totals Summary */}
-            <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+            <div className="flex justify-between items-center bg-surface p-4 rounded-2xl border border-gray-100 shadow-sm">
               <div className="text-xs space-y-0.5">
                 <span className="text-gray-400 font-medium block">
                   สรุปสลิปที่จะบันทึก ({validSuccessItems.length}/{items.length}{" "}

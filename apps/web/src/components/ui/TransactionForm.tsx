@@ -177,7 +177,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
           if (e.target === e.currentTarget) onClose();
         }}
       >
-        <div className="bg-white w-full max-w-lg rounded-t-[2.5rem] sm:rounded-[2.5rem] p-8 shadow-2xl animate-in slide-in-from-bottom duration-500 max-h-[95vh] overflow-y-auto">
+        <div className="bg-surface w-full max-w-lg rounded-t-[2.5rem] sm:rounded-[2.5rem] p-8 shadow-2xl animate-in slide-in-from-bottom duration-500 max-h-[95vh] overflow-y-auto">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-black text-gray-900">{title}</h2>
             <button
@@ -280,7 +280,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
                 }
                 className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${
                   formData.type === CategoryType.EXPENSE
-                    ? "bg-white text-red-500 shadow-sm"
+                    ? "bg-surface text-red-500 shadow-sm"
                     : "text-gray-400 hover:text-gray-600"
                 }`}
               >
@@ -296,7 +296,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
                 }
                 className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${
                   formData.type === CategoryType.INCOME
-                    ? "bg-white text-emerald-500 shadow-sm"
+                    ? "bg-surface text-emerald-500 shadow-sm"
                     : "text-gray-400 hover:text-gray-600"
                 }`}
               >
@@ -365,7 +365,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
                       className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all border-2 ${
                         formData.categoryId === cat._id
                           ? "bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100"
-                          : "bg-white border-gray-100 text-gray-400 hover:border-indigo-100 hover:bg-gray-50"
+                          : "bg-surface border-gray-100 text-gray-400 hover:border-indigo-100 hover:bg-gray-50"
                       }`}
                     >
                       <span className="text-lg">{cat.icon || "📦"}</span>
@@ -397,7 +397,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowDatePicker(true)}
-                    className="w-full bg-gray-50 border border-transparent p-4 rounded-2xl flex items-center justify-between group hover:bg-white hover:border-indigo-100 transition-all font-bold text-gray-700 h-[56px]"
+                    className="w-full bg-gray-50 border border-transparent p-4 rounded-2xl flex items-center justify-between group hover:bg-surface hover:border-indigo-100 transition-all font-bold text-gray-700 h-[56px]"
                   >
                     <span className="text-sm truncate">
                       {new Date(formData.date).toLocaleDateString("th-TH", {
@@ -481,7 +481,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
                   isNextMonthCycle ? "bg-indigo-600 justify-end" : "bg-gray-300 justify-start"
                 }`}
               >
-                <span className="bg-white w-5 h-5 rounded-full shadow-md" />
+                <span className="bg-surface w-5 h-5 rounded-full shadow-md" />
               </button>
             </div>
 

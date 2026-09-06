@@ -69,16 +69,20 @@ const AnalyticsPage: React.FC = () => {
 
   return (
     <Layout>
-      <div className="pb-24 px-4 pt-6 space-y-8 max-w-2xl mx-auto">
+      <div className="analytics-grid">
         {/* Header with Picker */}
         <div className="flex justify-between items-center px-2">
-          <h1 className="text-2xl font-black text-gray-900">วิเคราะห์ผล</h1>
+          <div><span className="eyebrow">INSIGHTS & TRENDS</span><h1 className="text-2xl font-black text-gray-900">เข้าใจเงินของคุณ</h1><p className="text-sm text-gray-500 mt-2">แนวโน้มการใช้จ่ายและโอกาสในการออม</p></div>
           <div className="flex gap-2">
+            <select aria-label="ปีที่ต้องการวิเคราะห์" value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))} className="bg-surface border border-gray-200 rounded-xl px-3 text-sm">
+              {Array.from({ length: 11 }, (_, i) => new Date().getFullYear() - i).map((year) => <option key={year} value={year}>{year + 543}</option>)}
+            </select>
             <div className="relative">
               <select 
+                aria-label="เดือนที่ต้องการวิเคราะห์"
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                className="appearance-none bg-white border border-gray-100 shadow-sm rounded-xl text-xs font-bold py-2 pl-3 pr-8 focus:ring-0 focus:border-indigo-200"
+                className="appearance-none bg-surface border border-gray-100 shadow-sm rounded-xl text-xs font-bold py-2 pl-3 pr-8 focus:ring-0 focus:border-indigo-200"
               >
                 {Array.from({ length: 12 }, (_, i) => (
                   <option key={i + 1} value={i + 1}>
@@ -133,7 +137,7 @@ const AnalyticsPage: React.FC = () => {
         </div>
 
         {/* Cashflow Summary Card */}
-        <section className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden relative group">
+        <section className="bg-surface p-6 rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden relative group">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest">เส้นทางเงิน (CASH FLOW)</h3>
             <div className="p-2 bg-indigo-50 rounded-xl">
@@ -164,7 +168,7 @@ const AnalyticsPage: React.FC = () => {
         </section>
 
         {/* Monthly Trends - Comparative */}
-        <section className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm">
+        <section className="bg-surface p-6 rounded-[2.5rem] border border-gray-100 shadow-sm">
           <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-8">เปรียบเทียบรายเดือน</h3>
           
           <div className="h-48 flex items-end justify-between gap-2 px-1">
@@ -205,20 +209,20 @@ const AnalyticsPage: React.FC = () => {
         </section>
 
         {/* Category Breakdown */}
-        <section className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm">
+        <section className="bg-surface p-6 rounded-[2.5rem] border border-gray-100 shadow-sm">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
             <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest">แบ่งตามหมวดหมู่ (100%)</h3>
             
             <div className="flex p-1 bg-gray-100 rounded-2xl w-full sm:w-auto">
                <button 
                 onClick={() => setActiveType("expense")}
-                className={`flex-1 sm:flex-none px-6 py-2 rounded-xl text-xs font-black transition-all ${activeType === 'expense' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-400'}`}
+                className={`flex-1 sm:flex-none px-6 py-2 rounded-xl text-xs font-black transition-all ${activeType === 'expense' ? 'bg-surface text-red-600 shadow-sm' : 'text-gray-400'}`}
                >
                  รายจ่าย
                </button>
                <button 
                 onClick={() => setActiveType("income")}
-                className={`flex-1 sm:flex-none px-6 py-2 rounded-xl text-xs font-black transition-all ${activeType === 'income' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-400'}`}
+                className={`flex-1 sm:flex-none px-6 py-2 rounded-xl text-xs font-black transition-all ${activeType === 'income' ? 'bg-surface text-emerald-600 shadow-sm' : 'text-gray-400'}`}
                >
                  รายรับ
                </button>
@@ -244,7 +248,7 @@ const AnalyticsPage: React.FC = () => {
                 const barColor = activeType === 'expense' ? (item.color || '#ef4444') : (item.color || '#10b981');
                 
                 return (
-                  <div key={idx} className="group cursor-pointer">
+                  <div key={idx} className="group">
                     <div className="flex justify-between items-center mb-3">
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">

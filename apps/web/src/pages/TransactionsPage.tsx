@@ -181,7 +181,8 @@ const TransactionsPage = () => {
       <div className="flex flex-col gap-6">
         <header className="flex justify-between items-center px-1">
           <div>
-            <h1 className="text-2xl font-black text-gray-800">รายงาน</h1>
+            <span className="eyebrow">MONEY IN, MONEY OUT</span>
+            <h1 className="text-2xl font-black text-gray-800">ทุกรายการของคุณ</h1>
             <p className="text-gray-400 text-sm font-medium">
               ติดตามการไหลเวียนของเงิน
             </p>
@@ -197,19 +198,21 @@ const TransactionsPage = () => {
             />
             <input
               type="text"
+              aria-label="ค้นหารายการ"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="ค้นหารายการ..."
-              className="w-full pl-12 pr-4 py-4 bg-white rounded-2xl border border-gray-100 shadow-sm focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm font-medium"
+              className="w-full pl-12 pr-4 py-4 bg-surface rounded-2xl border border-gray-100 shadow-sm focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm font-medium"
             />
           </div>
           <div className="relative">
             <button
               onClick={() => setShowCategoryFilter(true)}
+              aria-label="เปิดตัวกรองรายการ"
               className={`px-4 rounded-2xl border shadow-sm transition-all h-full flex items-center justify-center gap-1.5 ${
                 selectedCategoryId || uploadDateFilter || slipsOnlyFilter || sortByUpload
                   ? "bg-indigo-600 border-indigo-600 text-white"
-                  : "bg-white border-gray-100 text-gray-400 hover:bg-gray-50"
+                  : "bg-surface border-gray-100 text-gray-400 hover:bg-gray-50"
               }`}
             >
               <Filter size={20} />
@@ -225,7 +228,7 @@ const TransactionsPage = () => {
                 onClick={() => setShowCategoryFilter(false)}
               >
                 <div
-                  className="bg-white w-full max-w-md rounded-t-[2.5rem] sm:rounded-[2.5rem] p-6 sm:p-8 shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[85vh] overflow-y-auto"
+                  className="bg-surface w-full max-w-md rounded-t-[2.5rem] sm:rounded-[2.5rem] p-6 sm:p-8 shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[85vh] overflow-y-auto"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex justify-between items-center mb-6">
@@ -392,7 +395,7 @@ const TransactionsPage = () => {
                             slipsOnlyFilter ? "bg-indigo-600 justify-end" : "bg-gray-300 justify-start"
                           }`}
                         >
-                          <span className="bg-white w-4 h-4 rounded-full shadow" />
+                          <span className="bg-surface w-4 h-4 rounded-full shadow" />
                         </button>
                       </div>
 
@@ -412,7 +415,7 @@ const TransactionsPage = () => {
                             sortByUpload ? "bg-indigo-600 justify-end" : "bg-gray-300 justify-start"
                           }`}
                         >
-                          <span className="bg-white w-4 h-4 rounded-full shadow" />
+                          <span className="bg-surface w-4 h-4 rounded-full shadow" />
                         </button>
                       </div>
                     </div>
@@ -428,7 +431,7 @@ const TransactionsPage = () => {
                           className={`flex flex-col items-center gap-1 p-2.5 rounded-2xl transition-all border-2 ${
                             selectedCategoryId === null
                               ? "bg-indigo-50 border-indigo-200 text-indigo-600"
-                              : "bg-white border-gray-100 text-gray-400 hover:bg-gray-50"
+                              : "bg-surface border-gray-100 text-gray-400 hover:bg-gray-50"
                           }`}
                         >
                           <span className="text-base">
@@ -443,7 +446,7 @@ const TransactionsPage = () => {
                             className={`flex flex-col items-center gap-1 p-2.5 rounded-2xl transition-all border-2 ${
                               selectedCategoryId === cat._id
                                 ? "bg-indigo-600 border-indigo-600 text-white"
-                                : "bg-white border-gray-100 text-gray-400 hover:border-indigo-100"
+                                : "bg-surface border-gray-100 text-gray-400 hover:border-indigo-100"
                             }`}
                           >
                             <span className="text-base">{cat.icon || "📦"}</span>
@@ -483,7 +486,7 @@ const TransactionsPage = () => {
           </div>
           <button
             onClick={() => setOrder(order === "desc" ? "asc" : "desc")}
-            className={`px-4 rounded-2xl border shadow-sm transition-all h-full bg-white border-gray-100 text-gray-400 hover:text-indigo-600 hover:border-indigo-100 flex items-center justify-center`}
+            className={`px-4 rounded-2xl border shadow-sm transition-all h-full bg-surface border-gray-100 text-gray-400 hover:text-indigo-600 hover:border-indigo-100 flex items-center justify-center`}
             title={order === "desc" ? "เรียงจากใหม่ไปเก่า" : "เรียงจากเก่าไปใหม่"}
           >
             {order === "desc" ? (
@@ -502,7 +505,7 @@ const TransactionsPage = () => {
               onClick={() => setActiveTab(tab.id)}
               className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
                 activeTab === tab.id
-                  ? "bg-white text-indigo-600 shadow-sm"
+                  ? "bg-surface text-indigo-600 shadow-sm"
                   : "text-gray-500 hover:text-gray-700"
               }`}
             >
@@ -523,7 +526,7 @@ const TransactionsPage = () => {
             <p className="text-xs">ลองเปลี่ยนวันที่หรือคำค้นหาดูนะครับ</p>
           </div>
         ) : (
-          <div className="space-y-6 pb-20">
+          <div className="transaction-ledger">
             {Object.entries(groupedTransactions).map(([date, items]) => (
               <div key={date} className="space-y-3">
                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1">
@@ -533,8 +536,12 @@ const TransactionsPage = () => {
                   {items.map((t: Transaction) => (
                     <div
                       key={t._id}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`ดูรายละเอียด ${t.description || t.note || 'รายการ'}`}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedTransaction(t); } }}
                       onClick={() => setSelectedTransaction(t)}
-                      className="flex items-center gap-4 bg-white p-4 rounded-3xl border border-gray-100 shadow-sm hover:translate-x-1 transition-transform cursor-pointer"
+                      className="flex items-center gap-4 bg-surface p-4 rounded-3xl border border-gray-100 shadow-sm hover:translate-x-1 transition-transform cursor-pointer"
                     >
                       <div
                         className={`p-2.5 rounded-2xl ${t.type === "income" ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-600"}`}
@@ -613,7 +620,7 @@ const TransactionsPage = () => {
               />
             </div>
           ) : (
-            <div className="bg-white w-full max-w-sm max-h-[85vh] overflow-y-auto rounded-[2rem] shadow-2xl animate-in zoom-in-95 duration-200 scrollbar-hide">
+            <div className="bg-surface w-full max-w-sm max-h-[85vh] overflow-y-auto rounded-[2rem] shadow-2xl animate-in zoom-in-95 duration-200 scrollbar-hide">
               <div className="p-6">
                 <div className="flex justify-between items-center mb-6">
                   <span className="text-xs font-bold uppercase text-gray-400">
@@ -696,7 +703,7 @@ const TransactionsPage = () => {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-400 font-medium">ประเภท</span>
-                    <span className="font-bold uppercase text-[10px] bg-white px-2 py-0.5 rounded border border-gray-100">
+                    <span className="font-bold uppercase text-[10px] bg-surface px-2 py-0.5 rounded border border-gray-100">
                       {selectedTransaction.type === "income"
                         ? "รายรับ"
                         : "รายจ่าย"}
@@ -722,7 +729,7 @@ const TransactionsPage = () => {
                   onClick={() => {
                     setIsEditing(true);
                   }}
-                  className="flex-1 py-4 bg-white border border-gray-200 rounded-2xl font-bold text-indigo-600 hover:bg-indigo-50 hover:border-indigo-100 transition-all flex items-center justify-center gap-2"
+                  className="flex-1 py-4 bg-surface border border-gray-200 rounded-2xl font-bold text-indigo-600 hover:bg-indigo-50 hover:border-indigo-100 transition-all flex items-center justify-center gap-2"
                 >
                   แก้ไข
                 </button>

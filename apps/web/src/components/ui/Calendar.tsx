@@ -69,7 +69,7 @@ const Calendar: React.FC<CalendarProps> = ({ selectedDate, onChange, onClose }) 
   };
 
   return (
-    <div className="bg-white rounded-[2.5rem] p-6 shadow-2xl border border-gray-100 w-full max-w-[320px] animate-in zoom-in-95 duration-200">
+    <div className="bg-surface rounded-[2.5rem] p-6 shadow-2xl border border-gray-100 w-full max-w-[320px] animate-in zoom-in-95 duration-200">
       <div className="flex justify-between items-center mb-6 px-1">
         <div>
           <h3 className="font-black text-gray-800 text-lg leading-tight">{monthNames[month]}</h3>
