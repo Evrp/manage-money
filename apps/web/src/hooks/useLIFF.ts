@@ -11,6 +11,16 @@ export const useLIFF = (liffId: string) => {
   useEffect(() => {
     const initLIFF = async () => {
       try {
+        // Vite sets MODE to "development" when NODE_ENV=development. Do not
+        // expose this bypass through a client-controlled environment variable.
+        if (import.meta.env.MODE === "development") {
+          const response = await api.post("/auth/development");
+          const { user, accessToken } = response.data;
+          setAuth(user, accessToken);
+          setIsReady(true);
+          return;
+        }
+
         await liff.init({ liffId });
 
         if (!liff.isLoggedIn()) {
@@ -40,7 +50,7 @@ export const useLIFF = (liffId: string) => {
       }
     };
 
-    if (liffId) {
+    if (import.meta.env.MODE === "development" || liffId) {
       initLIFF();
     }
   }, [liffId, setAuth]);

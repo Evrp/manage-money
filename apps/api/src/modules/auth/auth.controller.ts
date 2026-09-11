@@ -10,4 +10,9 @@ export class AuthController {
   async login(@Body() lineLoginDto: LineLoginDto) {
     return this.authService.validateLineToken(lineLoginDto.idToken);
   }
+
+  @Post("development")
+  async developmentLogin() {
+    return this.authService.loginDevelopmentUser();
+  }
 }

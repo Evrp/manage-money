@@ -88,4 +88,31 @@ export class AuthService {
       throw new UnauthorizedException("Failed to verify LINE token");
     }
   }
+
+  /**
+   * Local-only login for an existing LINE user, without the LINE client or a
+   * LIFF ID. The user ID is configured server-side and cannot be supplied by
+   * the browser.
+   */
+  async loginDevelopmentUser() {
+    if (process.env.NODE_ENV !== "development") {
+      throw new UnauthorizedException("Development login is disabled");
+    }
+
+    const lineUserId = process.env.DEVELOPMENT_LINE_USER_ID;
+    if (!lineUserId) {
+      throw new UnauthorizedException("Development user is not configured");
+    }
+
+    const user = await this.userModel.findOne({ lineUserId });
+    if (!user) {
+      throw new UnauthorizedException("Development user was not found");
+    }
+
+    const payload = { sub: user._id, lineUserId: user.lineUserId };
+    return {
+      accessToken: this.jwtService.sign(payload),
+      user,
+    };
+  }
 }
