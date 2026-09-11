@@ -19,18 +19,18 @@ export class SlipsService {
   ) {}
 
   async processUpload(userId: string, file: Express.Multer.File) {
-    try {
-      // 1. Process image/PDF and Upload to storage (EXTERNAL CALL - Done first)
-      const { fileName, imageUrl, processedBuffer, mimeType } =
-        await this.uploadToStorage(userId, file);
+    // Store the file first. Once it is safely stored, an OCR failure must not
+    // make the receipt unusable: the user can still enter the transaction.
+    const { fileName, imageUrl, processedBuffer, mimeType } =
+      await this.uploadToStorage(userId, file);
 
-      // 2. OCR with Google Gemini API (EXTERNAL CALL - Do before DB work)
+    try {
+      // OCR is optional enhancement; the stored file remains usable on failure.
       const extractedData = await this.extractWithGemini(
         processedBuffer.toString("base64"),
         mimeType,
       );
 
-      // 3. Save to Database (Save path, not full signed URL)
       const slipUpload = await this.slipUploadModel.create({
         userId,
         imageUrl: fileName,
@@ -46,9 +46,21 @@ export class SlipsService {
       };
     } catch (error: any) {
       console.error("OCR Processing Error:", error);
-      throw new BadRequestException(
-        error.message || "Failed to process slip OCR with Gemini",
-      );
+
+      const slipUpload = await this.slipUploadModel.create({
+        userId,
+        imageUrl: fileName,
+        status: SlipUploadStatus.FAILED,
+        errorMessage: error.message || "Failed to process slip OCR with Gemini",
+        processedAt: new Date(),
+      });
+
+      return {
+        id: slipUpload._id,
+        imageUrl,
+        extractedData: null,
+        requiresManualEntry: true,
+      };
     }
   }
 

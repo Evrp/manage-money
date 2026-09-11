@@ -25,6 +25,7 @@ export interface SlipItemState {
   previewUrl: string;
   status: "uploading" | "success" | "error";
   errorMessage?: string;
+  requiresManualEntry?: boolean;
   slipId?: string;
   formData: {
     type: "income" | "expense";
@@ -134,6 +135,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
             ...i,
             status: "success",
             slipId: data.id,
+            requiresManualEntry: Boolean(data.requiresManualEntry),
             formData: {
               ...i.formData,
               amount: (extracted.cashAdvanceAmount || extracted.amount) ? String(extracted.cashAdvanceAmount || extracted.amount) : "",
@@ -539,9 +541,13 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                             </div>
                           )}
                           {item.status === "success" && (
-                            <div className="flex items-center gap-2 bg-emerald-50 text-emerald-600 px-3.5 py-1.5 rounded-full text-xs font-bold">
-                              <CheckCircle2 size={16} />
-                              <span>อ่านสลิปเรียบร้อย</span>
+                            <div className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold ${
+                              item.requiresManualEntry
+                                ? "bg-amber-50 text-amber-700"
+                                : "bg-emerald-50 text-emerald-600"
+                            }`}>
+                              {item.requiresManualEntry ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}
+                              <span>{item.requiresManualEntry ? "AI อ่านสลิปไม่ได้ — กรุณากรอกข้อมูลเอง" : "อ่านสลิปเรียบร้อย"}</span>
                             </div>
                           )}
                           {item.status === "error" && (
