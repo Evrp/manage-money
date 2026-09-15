@@ -15,6 +15,7 @@ import { FirebaseModule } from "./modules/firebase/firebase.module";
 import { AdvisorModule } from "./modules/advisor/advisor.module";
 import { GeminiModule } from "./modules/gemini/gemini.module";
 import { CreditCardsModule } from "./modules/credit-cards/credit-cards.module";
+import { RemindersModule } from "./modules/reminders/reminders.module";
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { CreditCardsModule } from "./modules/credit-cards/credit-cards.module";
     AdvisorModule,
     GeminiModule,
     CreditCardsModule,
+    RemindersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

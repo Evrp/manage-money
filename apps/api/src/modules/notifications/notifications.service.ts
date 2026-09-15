@@ -12,9 +12,9 @@ export class NotificationsService {
     @InjectModel(Budget.name) private budgetModel: Model<Budget>,
   ) {}
 
-  async sendLineMessage(to: string, messages: any[]) {
+  async sendLineMessage(to: string, messages: any[]): Promise<boolean> {
     const accessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN;
-    if (!accessToken) return;
+    if (!accessToken) return false;
 
     try {
       await axios.post(
@@ -27,11 +27,13 @@ export class NotificationsService {
           },
         },
       );
+      return true;
     } catch (error) {
       console.error(
         "LINE Push Message Error:",
         (error as any).response?.data || (error as any).message,
       );
+      return false;
     }
   }
 

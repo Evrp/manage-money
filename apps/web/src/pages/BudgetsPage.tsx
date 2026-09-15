@@ -15,6 +15,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../services/api";
 import CreateCategoryModal from "../components/ui/CreateCategoryModal";
 import MonthYearPicker from "../components/ui/MonthYearPicker";
+import RecurringExpenseReminders from "../components/ui/RecurringExpenseReminders";
 
 interface Category {
   _id: string;
@@ -367,6 +368,14 @@ const BudgetsPage = () => {
             </div>
           )}
         </div>
+
+        <RecurringExpenseReminders
+          categories={
+            Array.isArray(budgets)
+              ? budgets.map((budget) => budget.categoryId).filter(Boolean)
+              : []
+          }
+        />
       </div>
 
       {/* Edit Limit Modal */}
