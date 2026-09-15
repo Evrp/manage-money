@@ -15,7 +15,9 @@ import {
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import TransactionForm from "../components/ui/TransactionForm";
-import BulkSlipUploadModal from "../components/ui/BulkSlipUploadModal";
+import BulkSlipUploadModal, {
+  type PendingSlipUpload,
+} from "../components/ui/BulkSlipUploadModal";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCategories } from "../hooks/useCategories";
 import Calendar from "../components/ui/Calendar";
@@ -28,6 +30,7 @@ const HomePage = () => {
   const user = useAuthStore((state) => state.user);
   const [showManualForm, setShowManualForm] = useState(false);
   const [bulkUploadFiles, setBulkUploadFiles] = useState<File[]>([]);
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().split("T")[0],
   );
@@ -68,6 +71,10 @@ const HomePage = () => {
   });
 
   const { data: categories = [] } = useCategories();
+  const { data: pendingSlips = [] } = useQuery<PendingSlipUpload[]>({
+    queryKey: ["pending-slips"],
+    queryFn: async () => (await api.get("/slips/pending")).data,
+  });
 
   const enrichedRecentTransactions = useMemo(() => {
     if (!recentTransactions) return [];
@@ -86,6 +93,10 @@ const HomePage = () => {
   }, [recentTransactions, categories]);
 
   const handleUploadClick = () => {
+    if (bulkUploadFiles.length > 0) {
+      setIsBulkUploadOpen(true);
+      return;
+    }
     fileInputRef.current?.click();
   };
 
@@ -117,6 +128,7 @@ const HomePage = () => {
     }
 
     setBulkUploadFiles(files);
+    setIsBulkUploadOpen(true);
 
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -201,16 +213,24 @@ const HomePage = () => {
           </div>
         </div>
       )}
-      {bulkUploadFiles.length > 0 && (
+      {(bulkUploadFiles.length > 0 || pendingSlips.length > 0) && (
         <BulkSlipUploadModal
           initialFiles={bulkUploadFiles}
-          onClose={() => setBulkUploadFiles([])}
+          pendingUploads={pendingSlips}
+          isOpen={isBulkUploadOpen}
+          onOpen={() => setIsBulkUploadOpen(true)}
+          onMinimize={() => setIsBulkUploadOpen(false)}
+          onClose={() => {
+            setBulkUploadFiles([]);
+            setIsBulkUploadOpen(false);
+          }}
           onSuccess={() => {
             queryClient.invalidateQueries({
               queryKey: ["recent-transactions"],
             });
             queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
             queryClient.invalidateQueries({ queryKey: ["budgets"] });
+            queryClient.invalidateQueries({ queryKey: ["pending-slips"] });
           }}
         />
       )}

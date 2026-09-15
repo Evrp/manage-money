@@ -69,6 +69,49 @@ export class SlipsService {
     return { imageUrl };
   }
 
+  async findPending(userId: string) {
+    const uploads = await this.slipUploadModel
+      .find({ userId, transactionId: { $exists: false } })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return Promise.all(
+      uploads.map(async (upload) => {
+        let signedImageUrl: string | null = null;
+        try {
+          signedImageUrl = await this.firebaseService.getSignedUrl(
+            upload.imageUrl,
+          );
+        } catch (error) {
+          console.error("Failed to refresh pending slip URL:", error);
+        }
+
+        return {
+          id: upload._id.toString(),
+          imageUrl: signedImageUrl,
+          fileName: upload.imageUrl.split("/").pop() || "slip",
+          status: upload.status,
+          extractedData: upload.extractedData || null,
+          errorMessage: upload.errorMessage || null,
+          processedAt: upload.processedAt || null,
+        };
+      }),
+    );
+  }
+
+  async removePending(userId: string, slipId: string) {
+    const upload = await this.slipUploadModel.findOne({
+      _id: slipId,
+      userId,
+      transactionId: { $exists: false },
+    });
+    if (!upload) throw new BadRequestException("Slip not found");
+
+    await this.firebaseService.deleteFileFromUrl(upload.imageUrl);
+    await upload.deleteOne();
+    return { deleted: true };
+  }
+
   private async uploadToStorage(userId: string, file: Express.Multer.File) {
     let processedBuffer = file.buffer;
     let mimeType = file.mimetype;

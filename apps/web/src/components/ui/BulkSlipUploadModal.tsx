@@ -11,6 +11,7 @@ import {
   ZoomIn,
   Eye,
   FileText,
+  ShoppingBag,
 } from "lucide-react";
 import api from "../../services/api";
 import { useCategories } from "../../hooks/useCategories";
@@ -18,6 +19,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import CreateCategoryModal from "./CreateCategoryModal";
 import { useCreditCards } from "../../hooks/useCreditCards";
 import { PaymentMethod } from "@moneyflow/shared";
+import { useAuthStore } from "../../store/auth.store";
 
 export interface SlipItemState {
   id: string; // unique local ID
@@ -48,21 +50,41 @@ export interface SlipItemState {
   };
 }
 
+export interface PendingSlipUpload {
+  id: string;
+  imageUrl: string | null;
+  fileName: string;
+  status: "success" | "failed";
+  extractedData: Record<string, any> | null;
+  errorMessage: string | null;
+}
+
 interface BulkSlipUploadModalProps {
   initialFiles: File[];
+  pendingUploads: PendingSlipUpload[];
+  isOpen: boolean;
+  onOpen: () => void;
+  onMinimize: () => void;
   onClose: () => void;
   onSuccess: () => void;
 }
 
 const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
   initialFiles,
+  pendingUploads,
+  isOpen,
+  onOpen,
+  onMinimize,
   onClose,
   onSuccess,
 }) => {
   const queryClient = useQueryClient();
   const { data: categories = [] } = useCategories();
   const { data: creditCards = [] } = useCreditCards();
+  const lineUserId = useAuthStore((state) => state.user?.lineUserId);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const hasHydratedPendingUploads = useRef(false);
+  const draftStorageKey = `moneyflow-slip-drafts:${lineUserId || "anonymous"}`;
 
   const [items, setItems] = useState<SlipItemState[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -90,7 +112,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
         },
       }));
 
-      setItems(newItems);
+      setItems((currentItems) => [...currentItems, ...newItems]);
 
       // Trigger upload for each file in parallel
       newItems.forEach((item) => {
@@ -98,6 +120,93 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
       });
     }
   }, [initialFiles]);
+
+  useEffect(() => {
+    if (hasHydratedPendingUploads.current || pendingUploads.length === 0) {
+      return;
+    }
+
+    hasHydratedPendingUploads.current = true;
+    let savedDrafts: Record<string, SlipItemState["formData"]> = {};
+    try {
+      savedDrafts = JSON.parse(localStorage.getItem(draftStorageKey) || "{}");
+    } catch {
+      localStorage.removeItem(draftStorageKey);
+    }
+
+    const restoredItems: SlipItemState[] = pendingUploads.map((upload) => {
+      const extracted = upload.extractedData || {};
+      const isCreditReceipt = ["credit_card_statement", "cash_advance"].includes(
+        extracted.documentType,
+      );
+      const isIncome = extracted.transactionType === "income" && !isCreditReceipt;
+      const isPdf = upload.fileName.toLowerCase().endsWith(".pdf");
+      const extractedForm: SlipItemState["formData"] = {
+        type: isIncome ? "income" : "expense",
+        amount: extracted.cashAdvanceAmount || extracted.amount
+          ? String(extracted.cashAdvanceAmount || extracted.amount)
+          : "",
+        categoryId: "",
+        note: extracted.toName || extracted.toBank || "",
+        date: extracted.transactionDate || new Date().toISOString().split("T")[0],
+        isNextMonthCycle: false,
+        suggestedCategory: extracted.suggestedCategory,
+        slipImageUrl: upload.imageUrl || undefined,
+        documentType: extracted.documentType,
+        creditCardLast4: extracted.creditCardLast4 || "",
+        feeAmount: extracted.feeAmount != null ? String(extracted.feeAmount) : "",
+        receiptInterestRate:
+          extracted.receiptInterestRate != null
+            ? String(extracted.receiptInterestRate)
+            : "",
+        minimumPaymentRate:
+          extracted.minimumPaymentRate != null
+            ? String(extracted.minimumPaymentRate)
+            : "",
+        minimumPaymentAmount:
+          extracted.minimumPaymentAmount != null
+            ? String(extracted.minimumPaymentAmount)
+            : "",
+        statementDueDate: extracted.statementDueDate || "",
+        referenceNumber: extracted.referenceNo || "",
+      };
+
+      return {
+        id: `restored_${upload.id}`,
+        file: new File([], upload.fileName, {
+          type: isPdf ? "application/pdf" : "image/webp",
+        }),
+        previewUrl: upload.imageUrl || "",
+        status: "success",
+        slipId: upload.id,
+        requiresManualEntry: upload.status === "failed",
+        errorMessage: upload.errorMessage || undefined,
+        formData: { ...extractedForm, ...savedDrafts[upload.id] },
+      };
+    });
+
+    setItems((currentItems) => {
+      const restoredIds = new Set(restoredItems.map((item) => item.slipId));
+      return [
+        ...restoredItems,
+        ...currentItems.filter((item) => !item.slipId || !restoredIds.has(item.slipId)),
+      ];
+    });
+  }, [draftStorageKey, pendingUploads]);
+
+  useEffect(() => {
+    const drafts = items.reduce<Record<string, SlipItemState["formData"]>>(
+      (saved, item) => {
+        if (item.slipId) saved[item.slipId] = item.formData;
+        return saved;
+      },
+      {},
+    );
+
+    if (Object.keys(drafts).length > 0) {
+      localStorage.setItem(draftStorageKey, JSON.stringify(drafts));
+    }
+  }, [draftStorageKey, items]);
 
   // Upload single slip and run OCR
   const uploadAndExtractSlip = async (item: SlipItemState) => {
@@ -238,8 +347,23 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
   };
 
   // Remove individual item
-  const handleRemoveItem = (id: string) => {
-    setItems((prev) => prev.filter((item) => item.id !== id));
+  const handleRemoveItem = async (id: string) => {
+    const item = items.find((candidate) => candidate.id === id);
+    if (!item) return;
+
+    try {
+      if (item.slipId) {
+        await api.delete(`/slips/${item.slipId}`);
+        queryClient.invalidateQueries({ queryKey: ["pending-slips"] });
+      }
+      URL.revokeObjectURL(item.previewUrl);
+      setItems((prev) => prev.filter((candidate) => candidate.id !== id));
+    } catch (error: any) {
+      alert(
+        "ลบสลิปไม่สำเร็จ: " +
+          (error.response?.data?.message || error.message),
+      );
+    }
   };
 
   // Update form data for single item
@@ -287,6 +411,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
   );
 
   const uploadingCount = items.filter((i) => i.status === "uploading").length;
+  const pendingCount = items.length - validSuccessItems.length;
 
   // Batch Submit All Confirmed Items
   const handleSubmitAll = async () => {
@@ -344,8 +469,32 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
 
   return (
     <>
+      {!isOpen && items.length > 0 && (
+        <button
+          type="button"
+          onClick={onOpen}
+          className="fixed bottom-5 right-5 z-[90] flex min-h-14 items-center gap-3 rounded-2xl bg-indigo-600 px-4 py-3 text-left text-white shadow-xl shadow-indigo-950/25 transition-transform hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 active:scale-95"
+          aria-label={`เปิดถาดอัปโหลดสลิป มี ${items.length} รายการ`}
+        >
+          <span className="relative grid h-9 w-9 place-items-center rounded-xl bg-white/15">
+            <ShoppingBag size={20} />
+            <span className="absolute -right-2 -top-2 grid min-h-5 min-w-5 place-items-center rounded-full bg-amber-400 px-1 text-[11px] font-black text-slate-900">
+              {items.length}
+            </span>
+          </span>
+          <span className="leading-tight">
+            <strong className="block text-sm">ถาดอัปโหลด</strong>
+            <small className="block text-xs text-indigo-100">
+              {uploadingCount > 0
+                ? `กำลังอ่าน ${uploadingCount} รายการ`
+                : `รอดำเนินการ ${pendingCount} รายการ`}
+            </small>
+          </span>
+        </button>
+      )}
+
       {/* Create Category Modal */}
-      {showCreateCategory && (
+      {isOpen && showCreateCategory && (
         <CreateCategoryModal
           onClose={() => setShowCreateCategory(false)}
           onSubmit={async (data) => {
@@ -374,7 +523,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
       )}
 
       {/* Full-Screen Image Lightbox Modal */}
-      {zoomedImage && (
+      {isOpen && zoomedImage && (
         <div
           className="fixed inset-0 z-[150] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
           onClick={() => setZoomedImage(null)}
@@ -394,10 +543,10 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
         </div>
       )}
 
-      <div
+      {isOpen && <div
         className="fixed inset-0 bg-black/70 backdrop-blur-md z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-300"
         onClick={(e) => {
-          if (e.target === e.currentTarget && !isSubmitting) onClose();
+          if (e.target === e.currentTarget && !isSubmitting) onMinimize();
         }}
       >
         <div className="bg-slate-50 w-full max-w-4xl rounded-t-[2.5rem] sm:rounded-[2.5rem] p-6 sm:p-8 shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[92vh] flex flex-col">
@@ -417,7 +566,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
               </p>
             </div>
             <button
-              onClick={onClose}
+              onClick={onMinimize}
               disabled={isSubmitting}
               className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-400"
             >
@@ -854,7 +1003,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
             </button>
           </div>
         </div>
-      </div>
+      </div>}
     </>
   );
 };

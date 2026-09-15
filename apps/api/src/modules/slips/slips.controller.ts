@@ -8,6 +8,9 @@ import {
   UploadedFile,
   UploadedFiles,
   BadRequestException,
+  Delete,
+  Get,
+  Param,
 } from "@nestjs/common";
 import { FileInterceptor, FilesInterceptor } from "@nestjs/platform-express";
 import { SlipsService } from "./slips.service";
@@ -38,6 +41,11 @@ const multerOptions = {
 export class SlipsController {
   constructor(private readonly slipsService: SlipsService) {}
 
+  @Get("pending")
+  findPending(@Request() req) {
+    return this.slipsService.findPending(req.user.userId);
+  }
+
   @Post("upload")
   @UseInterceptors(FileInterceptor("file", multerOptions))
   async upload(@Request() req, @UploadedFile() file: Express.Multer.File) {
@@ -62,6 +70,11 @@ export class SlipsController {
   async uploadOnly(@Request() req, @UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException("No file uploaded");
     return this.slipsService.uploadOnly(req.user.userId, file);
+  }
+
+  @Delete(":id")
+  remove(@Request() req, @Param("id") id: string) {
+    return this.slipsService.removePending(req.user.userId, id);
   }
 
   @Post("confirm")
