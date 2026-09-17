@@ -19,7 +19,7 @@ export class RecurringExpense extends Document implements IRecurringExpense {
   @Prop({ required: true, min: 1, max: 31 })
   dueDay: number;
 
-  @Prop({ default: "00:00", match: /^([01]\d|2[0-3]):[0-5]\d$/ })
+  @Prop({ default: "09:00", match: /^([01]\d|2[0-3]):[0-5]\d$/ })
   reminderTime: string;
 
   @Prop({ default: true })
@@ -34,5 +34,5 @@ export class RecurringExpense extends Document implements IRecurringExpense {
 
 export const RecurringExpenseSchema =
   SchemaFactory.createForClass(RecurringExpense);
-RecurringExpenseSchema.index({ enabled: 1, reminderTime: 1 });
+RecurringExpenseSchema.index({ enabled: 1, dueDay: 1 });
 RecurringExpenseSchema.index({ userId: 1, dueDay: 1 });

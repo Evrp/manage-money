@@ -28,7 +28,6 @@ const defaultForm = {
   name: "",
   amount: "",
   dueDay: "1",
-  reminderTime: "09:00",
   categoryId: "",
 };
 
@@ -58,7 +57,6 @@ export default function RecurringExpenseReminders({
         name: form.name.trim(),
         amount: Number(form.amount),
         dueDay: Number(form.dueDay),
-        reminderTime: form.reminderTime,
         ...(form.categoryId ? { categoryId: form.categoryId } : {}),
       }),
     onSuccess: () => {
@@ -98,7 +96,7 @@ export default function RecurringExpenseReminders({
           <h2>บิลที่ต้องจ่ายทุกเดือน</h2>
           <p>
             ระบบจะแจ้ง LINE Flex Message
-            ตามวันครบกำหนดและเวลาไทยที่ตั้งไว้ในระบบ
+            ทุกวันครบกำหนด เวลา 09:00 น. (เวลาไทย)
           </p>
         </div>
         <button
@@ -148,7 +146,7 @@ export default function RecurringExpenseReminders({
                 </span>
                 <small>
                   <Clock3 size={13} />
-                  แจ้งเวลา {reminder.reminderTime} น. (เวลาไทย)
+                  แจ้งเวลา 09:00 น. (เวลาไทย)
                 </small>
               </div>
               <button
@@ -198,7 +196,7 @@ export default function RecurringExpenseReminders({
             </div>
             <p className="form-helper">
               <CalendarDays size={16} />
-              LINE จะแจ้งในวันครบกำหนดตามเวลาไทยที่คุณเลือก
+              LINE จะแจ้งในวันครบกำหนด เวลา 09:00 น. (เวลาไทย)
             </p>
             <label>
               ชื่อรายการ
@@ -236,16 +234,6 @@ export default function RecurringExpenseReminders({
                   value={form.dueDay}
                   onChange={(event) =>
                     setForm({ ...form, dueDay: event.target.value })
-                  }
-                />
-              </label>
-              <label>
-                เวลาแจ้งเตือน
-                <input
-                  type="time"
-                  value={form.reminderTime}
-                  onChange={(event) =>
-                    setForm({ ...form, reminderTime: event.target.value })
                   }
                 />
               </label>

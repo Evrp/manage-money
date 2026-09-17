@@ -43,7 +43,7 @@
     },
     {
       "path": "/api/recurring-expenses/cron/run",
-      "schedule": "* * * * *"
+      "schedule": "0 2 * * *"
     }
   ]
 }

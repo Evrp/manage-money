@@ -13,17 +13,12 @@ type BangkokDateParts = {
   year: number;
   month: number;
   day: number;
-  hour: number;
-  minute: number;
 };
 
 @Injectable()
 export class RemindersService {
   private readonly timezone = process.env.REMINDER_TIMEZONE || "Asia/Bangkok";
-  private readonly configuredTimes = (process.env.REMINDER_RUN_TIMES || "09:00")
-    .split(",")
-    .map((time) => time.trim())
-    .filter((time) => /^([01]\d|2[0-3]):[0-5]\d$/.test(time));
+  private readonly reminderTime = "09:00";
 
   constructor(
     @InjectModel(RecurringExpense.name)
@@ -57,7 +52,7 @@ export class RemindersService {
     return this.recurringExpenseModel.create({
       userId,
       ...dto,
-      reminderTime: dto.reminderTime || this.configuredTimes[0] || "09:00",
+      reminderTime: this.reminderTime,
       enabled: dto.enabled ?? true,
     });
   }
@@ -66,7 +61,7 @@ export class RemindersService {
     await this.assertOwnedCategory(userId, dto.categoryId);
     return this.recurringExpenseModel.findOneAndUpdate(
       { _id: id, userId },
-      { $set: dto },
+      { $set: { ...dto, reminderTime: this.reminderTime } },
       { new: true },
     );
   }
@@ -77,9 +72,6 @@ export class RemindersService {
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      hourCycle: "h23",
     });
     const parts = Object.fromEntries(
       formatter
@@ -91,8 +83,6 @@ export class RemindersService {
       year: Number(parts.year),
       month: Number(parts.month),
       day: Number(parts.day),
-      hour: Number(parts.hour),
-      minute: Number(parts.minute),
     };
   }
 
@@ -102,13 +92,12 @@ export class RemindersService {
 
   async runDueReminders(now = new Date()) {
     const current = this.bangkokParts(now);
-    const reminderTime = `${String(current.hour).padStart(2, "0")}:${String(current.minute).padStart(2, "0")}`;
-    const reminderKey = `${current.year}-${String(current.month).padStart(2, "0")}-${String(current.day).padStart(2, "0")}-${reminderTime}`;
+    const reminderKey = `${current.year}-${String(current.month).padStart(2, "0")}-${String(current.day).padStart(2, "0")}`;
     const candidates = await this.recurringExpenseModel.find({ enabled: true });
     const dueExpenses = candidates.filter(
       (expense) =>
         this.dueDayInMonth(expense.dueDay, current.year, current.month) ===
-          current.day && expense.reminderTime === reminderTime,
+          current.day,
     );
     let sent = 0;
 
@@ -136,7 +125,7 @@ export class RemindersService {
       const dateLabel = `${current.day} ${new Intl.DateTimeFormat("th-TH", { timeZone: this.timezone, month: "long" }).format(now)} ${current.year + 543}`;
       const delivered = await this.notificationsService.sendLineMessage(
         user.lineUserId,
-        [createRecurringExpenseReminderFlex(claimed, dateLabel, reminderTime)],
+        [createRecurringExpenseReminderFlex(claimed, dateLabel, this.reminderTime)],
       );
 
       if (delivered) {
@@ -157,7 +146,7 @@ export class RemindersService {
     }
     return {
       timezone: this.timezone,
-      runTimes: this.configuredTimes,
+      runTime: this.reminderTime,
       checked: dueExpenses.length,
       sent,
       skipped: false,
