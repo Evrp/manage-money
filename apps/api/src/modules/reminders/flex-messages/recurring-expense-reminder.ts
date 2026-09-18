@@ -122,7 +122,7 @@ export const createRecurringExpenseReminderFlex = (
       contents: [
         {
           type: "text",
-          text: "บันทึกการจ่ายแล้วใน MoneyFlow เพื่ออัปเดตงบประมาณ",
+          text: "บันทึกการจ่ายแล้วใน Fumi Manager เพื่ออัปเดตงบประมาณ",
           size: "xs",
           color: "#667080",
           align: "center",

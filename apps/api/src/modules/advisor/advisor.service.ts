@@ -37,7 +37,7 @@ export class AdvisorService {
       )
       .join("\n");
 
-    const systemPrompt = `คุณคือ "MoneyFlow Advisor" ผู้เชี่ยวชาญด้านการเงินส่วนบุคคลที่ใจดีและรอบรู้
+    const systemPrompt = `คุณคือ "Fumi Manager Advisor" ผู้เชี่ยวชาญด้านการเงินส่วนบุคคลที่ใจดีและรอบรู้
 ข้อมูลการเงินของผู้ใช้ในเดือนนี้ (${month}/${year}):
 - รายรับรวม: ฿${summary.income}
 - รายจ่ายรวม: ฿${summary.expense}

@@ -8,7 +8,7 @@ import {
   PieChart,
   Target,
   User,
-  Wallet,
+  Cat,
 } from "lucide-react";
 import BottomNav from "./BottomNav";
 import { useAuthStore } from "../../store/auth.store";
@@ -34,7 +34,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const current =
     navigation.find((item) => item.to === pathname) || navigation[0];
   useEffect(() => {
-    document.title = `${current.label} · MoneyFlow`;
+    document.title = `${current.label} · Fumi Manager`;
     window.scrollTo(0, 0);
     mainRef.current?.focus({ preventScroll: true });
   }, [pathname, current.label]);
@@ -46,9 +46,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       <aside className="app-sidebar">
         <Link to="/" className="brand">
           <span className="brand-mark">
-            <Wallet size={22} />
+            <Cat size={22} />
           </span>
-          Money<span>Flow</span>
+          <span>Fumi</span>&nbsp;Manager
         </Link>
         <p className="nav-eyebrow">YOUR MONEY, IN FOCUS</p>
         <nav aria-label="เมนูหลัก" className="sidebar-links">
@@ -94,9 +94,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         <header className="app-topbar">
           <Link to="/" className="mobile-brand brand">
             <span className="brand-mark">
-              <Wallet size={20} />
+              <Cat size={20} />
             </span>
-            MoneyFlow
+            Fumi Manager
           </Link>
           <div className="desktop-breadcrumb">
             พื้นที่การเงินของคุณ <span>/</span> <strong>{current.label}</strong>
@@ -122,7 +122,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         >
           {children}
           <footer className="app-footer">
-            <span>MoneyFlow</span>
+            <span>Fumi Manager</span>
             <span>จัดการเงินวันนี้ เพื่อวันพรุ่งนี้ที่ดีขึ้น</span>
           </footer>
         </main>

@@ -61,7 +61,7 @@ export class WebhookService {
   private async sendWelcomeMessage(lineUserId: string) {
     const message = {
       type: "text",
-      text: "ยินดีต้อนรับสู่ MoneyFlow! 💰\n\nช่วยคุณจัดการรายรับ-รายจ่ายผ่าน LINE ได้ง่ายๆ\n\n- อัพโหลดสลิปธนาคารเพื่อบันทึกอัตโนมัติ\n- ตั้งงบประมาณรายเดือน\n- ดู Dashboard สรุปผลสวยๆ\n\nเริ่มใช้งานได้ที่เมนูด้านล่างเลยครับ!",
+      text: "ยินดีต้อนรับสู่ Fumi Manager! 🐾\n\nช่วยคุณจัดการรายรับ-รายจ่ายผ่าน LINE ได้ง่ายๆ\n\n- อัพโหลดสลิปธนาคารเพื่อบันทึกอัตโนมัติ\n- ตั้งงบประมาณรายเดือน\n- ดู Dashboard สรุปผลสวยๆ\n\nเริ่มใช้งานได้ที่เมนูด้านล่างเลยครับ!",
     };
     await this.notificationsService.sendLineMessage(lineUserId, [message]);
   }
