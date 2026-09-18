@@ -118,6 +118,8 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [dateSort, setDateSort] = useState<"newest" | "oldest">("newest");
+  const [readinessFilter, setReadinessFilter] = useState<"all" | "ready" | "needs-review">("all");
+  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   
   // State for Full-Screen Image Lightbox
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
@@ -399,6 +401,11 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
       }
       URL.revokeObjectURL(item.previewUrl);
       setItems((prev) => prev.filter((candidate) => candidate.id !== id));
+      setSelectedItemIds((selected) => {
+        const next = new Set(selected);
+        next.delete(id);
+        return next;
+      });
     } catch (error: any) {
       alert(
         "ลบสลิปไม่สำเร็จ: " +
@@ -427,21 +434,6 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
     );
   };
 
-  // Calculate totals
-  const totalExpense = items.reduce((acc, item) => {
-    if (item.status === "success" && item.formData.type === "expense") {
-      return acc + (Number(item.formData.amount) || 0);
-    }
-    return acc;
-  }, 0);
-
-  const totalIncome = items.reduce((acc, item) => {
-    if (item.status === "success" && item.formData.type === "income") {
-      return acc + (Number(item.formData.amount) || 0);
-    }
-    return acc;
-  }, 0);
-
   const validSuccessItems = items.filter(
     (item) =>
       item.status === "success" &&
@@ -468,17 +460,42 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
   const visibleItems = (pendingView?.ids || [])
     .map((slipId) => items.find((item) => item.slipId === slipId))
     .filter((item): item is SlipItemState => Boolean(item));
+  const readyItemIds = new Set(validSuccessItems.map((item) => item.id));
+  const readyVisibleCount = visibleItems.filter((item) => readyItemIds.has(item.id)).length;
+  const needsReviewVisibleCount = visibleItems.length - readyVisibleCount;
+  const filteredVisibleItems = visibleItems.filter((item) =>
+    readinessFilter === "all"
+      ? true
+      : readinessFilter === "ready"
+        ? readyItemIds.has(item.id)
+        : !readyItemIds.has(item.id),
+  );
+  const readyFilteredItems = filteredVisibleItems.filter((item) => readyItemIds.has(item.id));
+  const selectedVisibleItems = filteredVisibleItems.filter((item) => selectedItemIds.has(item.id));
+  const selectedReadyItems = readyFilteredItems.filter((item) => selectedItemIds.has(item.id));
+  const submissionItems = selectedVisibleItems.length > 0 ? selectedReadyItems : readyFilteredItems;
+  const isAllFilteredSelected = filteredVisibleItems.length > 0 && selectedVisibleItems.length === filteredVisibleItems.length;
+  const totalExpense = filteredVisibleItems.reduce((total, item) => {
+    return item.status === "success" && item.formData.type === "expense"
+      ? total + (Number(item.formData.amount) || 0)
+      : total;
+  }, 0);
+  const totalIncome = filteredVisibleItems.reduce((total, item) => {
+    return item.status === "success" && item.formData.type === "income"
+      ? total + (Number(item.formData.amount) || 0)
+      : total;
+  }, 0);
 
   // Batch Submit All Confirmed Items
   const handleSubmitAll = async () => {
-    if (validSuccessItems.length === 0) {
+    if (submissionItems.length === 0) {
       alert("กรุณากรอกยอดเงินและเลือกหมวดหมู่ให้ครบถ้วนอย่างน้อย 1 รายการ");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const confirmPayload = validSuccessItems.map((item) => ({
+      const confirmPayload = submissionItems.map((item) => ({
         slipId: item.slipId!,
         transactionData: {
           amount: Number(item.formData.amount),
@@ -526,6 +543,33 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const toggleItemSelection = (id: string) => {
+    setSelectedItemIds((selected) => {
+      const next = new Set(selected);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAllFilteredSelection = () => {
+    setSelectedItemIds((selected) => {
+      const next = new Set(selected);
+      if (isAllFilteredSelected) {
+        filteredVisibleItems.forEach((item) => next.delete(item.id));
+      } else {
+        filteredVisibleItems.forEach((item) => next.add(item.id));
+      }
+      return next;
+    });
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedVisibleItems.length === 0) return;
+    if (!window.confirm(`ลบสลิปที่เลือก ${selectedVisibleItems.length} รายการหรือไม่?`)) return;
+
+    await Promise.all(selectedVisibleItems.map((item) => handleRemoveItem(item.id)));
   };
 
   return (
@@ -732,8 +776,9 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                 </div>
               </div>
               <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
-                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">
-                  พร้อมบันทึก {validSuccessItems.length}
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">
+                  <CheckCircle2 size={13} />
+                  พร้อมบันทึก {readyFilteredItems.length}
                 </span>
                 {uploadingCount > 0 && (
                   <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-indigo-700">
@@ -783,7 +828,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                     <div className="flex items-center gap-2 text-sm font-black text-slate-800">
                       <CalendarDays size={17} className="text-indigo-600" />
                       ค้นหารายการตามวันที่
-                      <span className="text-xs font-bold text-slate-400">{pendingView?.total ?? 0}/{items.length}</span>
+                      <span className="text-xs font-bold text-slate-400">{filteredVisibleItems.length}/{visibleItems.length}</span>
                     </div>
                     {(fromDate || toDate) && (
                       <button
@@ -814,16 +859,66 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                       </select>
                     </label>
                   </div>
+                  <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="กรองความพร้อมของรายการ">
+                    {[
+                      { value: "all", label: "ทั้งหมด", count: visibleItems.length, icon: Receipt },
+                      { value: "ready", label: "พร้อมบันทึก", count: readyVisibleCount, icon: CheckCircle2 },
+                      { value: "needs-review", label: "ยังไม่พร้อม", count: needsReviewVisibleCount, icon: AlertCircle },
+                    ].map(({ value, label, count, icon: Icon }) => {
+                      const isSelected = readinessFilter === value;
+                      return (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setReadinessFilter(value as "all" | "ready" | "needs-review")}
+                          className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition-colors ${
+                            isSelected
+                              ? "border-indigo-600 bg-indigo-600 text-white"
+                              : "border-slate-200 bg-slate-50 text-slate-600 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
+                          }`}
+                        >
+                          <Icon size={15} />
+                          {label} ({count})
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {filteredVisibleItems.length > 0 && (
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+                      <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={isAllFilteredSelected}
+                          onChange={toggleAllFilteredSelection}
+                          className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        เลือกทั้งหมดในผลลัพธ์ ({filteredVisibleItems.length})
+                      </label>
+                      {selectedVisibleItems.length > 0 && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-slate-500">เลือก {selectedVisibleItems.length} รายการ</span>
+                          <button
+                            type="button"
+                            onClick={handleDeleteSelected}
+                            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 text-xs font-bold text-rose-700 transition-colors hover:bg-rose-100"
+                          >
+                            <Trash2 size={15} />
+                            ลบที่เลือก
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </section>
                 {isPendingViewLoading ? (
                   <div className="grid min-h-40 place-items-center rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm font-medium text-slate-500">
                     <Loader2 size={22} className="animate-spin text-indigo-600" />
                   </div>
-                ) : visibleItems.length === 0 ? (
+                ) : filteredVisibleItems.length === 0 ? (
                   <div className="grid min-h-40 place-items-center rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm font-medium text-slate-500">
-                    ไม่พบสลิปในช่วงวันที่เลือก
+                    {visibleItems.length === 0 ? "ไม่พบสลิปในช่วงวันที่เลือก" : "ไม่พบรายการตามสถานะที่เลือก"}
                   </div>
-                ) : visibleItems.map((item, index) => {
+                ) : filteredVisibleItems.map((item, index) => {
                 const filteredCats = categories.filter(
                   (c) => c.type === item.formData.type,
                 );
@@ -844,6 +939,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                       : item.requiresManualEntry
                         ? "กรอกข้อมูลเอง"
                         : "อ่านสลิปแล้ว";
+                const isReadyToSave = readyItemIds.has(item.id);
 
                 return (
                   <div
@@ -852,6 +948,14 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                   >
                     {!isExpanded ? (
                       <div className="flex items-center gap-3 sm:gap-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedItemIds.has(item.id)}
+                          onChange={() => toggleItemSelection(item.id)}
+                          onClick={(event) => event.stopPropagation()}
+                          aria-label={`เลือกรายการสลิปใบที่ ${index + 1}`}
+                          className="h-4 w-4 shrink-0 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        />
                         <button
                           type="button"
                           onClick={() => setExpandedItemId(item.id)}
@@ -891,6 +995,12 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                               >
                                 {statusLabel}
                               </span>
+                              {isReadyToSave && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-black text-emerald-700">
+                                  <CheckCircle2 size={13} />
+                                  พร้อมบันทึก
+                                </span>
+                              )}
                             </span>
                             <span className="mt-1 block truncate text-xs text-slate-500">
                               {item.formData.note || item.file?.name || "แตะเพื่อตรวจสอบรายละเอียด"}
@@ -990,6 +1100,14 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                         {/* Top Status & Remove Bar */}
                         <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
                           {/* Status Badge */}
+                          <div className="flex min-w-0 flex-wrap items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={selectedItemIds.has(item.id)}
+                            onChange={() => toggleItemSelection(item.id)}
+                            aria-label={`เลือกรายการสลิปใบที่ ${index + 1}`}
+                            className="h-4 w-4 shrink-0 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                          />
                           {item.status === "uploading" && (
                             <div className="flex items-center gap-2 bg-indigo-50 text-indigo-600 px-3.5 py-1.5 rounded-full text-xs font-bold animate-pulse">
                               <Loader2 size={16} className="animate-spin" />
@@ -1006,12 +1124,19 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                               <span>{item.requiresManualEntry ? "AI อ่านสลิปไม่ได้ — กรุณากรอกข้อมูลเอง" : "อ่านสลิปเรียบร้อย"}</span>
                             </div>
                           )}
+                          {isReadyToSave && (
+                            <div className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-black text-emerald-700">
+                              <CheckCircle2 size={15} />
+                              <span>พร้อมบันทึกรายการ</span>
+                            </div>
+                          )}
                           {item.status === "error" && (
                             <div className="flex items-center gap-2 bg-red-50 text-red-600 px-3.5 py-1.5 rounded-full text-xs font-bold">
                               <AlertCircle size={16} />
                               <span>{item.errorMessage || "อ่านสลิปไม่สำเร็จ"}</span>
                             </div>
                           )}
+                          </div>
 
                           <div className="flex shrink-0 items-center gap-1">
                             <button
@@ -1245,8 +1370,9 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
             {/* Totals Summary */}
             <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
               <div className="text-xs space-y-0.5">
-                <span className="text-slate-600 font-bold block">
-                  พร้อมบันทึก {validSuccessItems.length} จาก {items.length} รายการ
+                <span className="flex items-center gap-1.5 text-slate-600 font-bold">
+                  <CheckCircle2 size={15} className="text-emerald-600" />
+                  พร้อมบันทึก {submissionItems.length} จาก {filteredVisibleItems.length} รายการ
                 </span>
                 {uploadingCount > 0 && (
                   <span className="text-indigo-500 font-bold block animate-pulse">
@@ -1283,11 +1409,11 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
               onClick={handleSubmitAll}
               disabled={
                 isSubmitting ||
-                validSuccessItems.length === 0 ||
+                submissionItems.length === 0 ||
                 uploadingCount > 0
               }
-              className={`w-full min-h-[52px] rounded-xl px-4 py-3 font-black text-sm sm:text-base transition-colors shadow-lg ${
-                validSuccessItems.length > 0 && uploadingCount === 0
+              className={`flex w-full min-h-[52px] items-center justify-center gap-2 rounded-xl px-4 py-3 font-black text-sm sm:text-base transition-colors shadow-lg ${
+                submissionItems.length > 0 && uploadingCount === 0
                   ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200 active:scale-95"
                   : "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
               }`}
@@ -1298,7 +1424,10 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                   <span>กำลังบันทึกข้อมูล...</span>
                 </div>
               ) : (
-                `บันทึกทั้งหมด (${validSuccessItems.length} รายการ)`
+                <>
+                  <CheckCircle2 size={20} />
+                  <span>{selectedVisibleItems.length > 0 ? "บันทึกที่เลือก" : "บันทึกทั้งหมด"} ({submissionItems.length} รายการ)</span>
+                </>
               )}
             </button>
           </div>
