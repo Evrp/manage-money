@@ -3,7 +3,6 @@ import Layout from "../components/layout/Layout";
 import {
   Search,
   Filter,
-  Calendar as CalendarIcon,
   ArrowUpRight,
   ArrowDownLeft,
   X,
@@ -13,6 +12,7 @@ import {
   Trash2,
   RotateCcw,
   Receipt,
+  ChevronDown,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { deleteTransaction, getTransactions, updateTransaction } from "../services/transactionsService";
@@ -20,6 +20,7 @@ import { useCategories } from "../hooks/useCategories";
 import Calendar from "../components/ui/Calendar";
 import TransactionForm from "../components/ui/TransactionForm";
 import BulkSlipUploadModal from "../components/ui/BulkSlipUploadModal";
+import DatePickerField from "../components/ui/DatePickerField";
 
 interface Transaction {
   _id: string;
@@ -53,6 +54,7 @@ const TransactionsPage = () => {
   const [uploadDateFilter, setUploadDateFilter] = useState<string>("");
   const [slipsOnlyFilter, setSlipsOnlyFilter] = useState<boolean>(false);
   const [sortByUpload, setSortByUpload] = useState<boolean>(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [selectedTransaction, setSelectedTransaction] =
     useState<Transaction | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -225,196 +227,57 @@ const TransactionsPage = () => {
                 onClick={() => setShowCategoryFilter(false)}
               >
                 <div
-                  className="bg-surface w-full max-w-md rounded-t-[2.5rem] sm:rounded-[2.5rem] p-6 sm:p-8 shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[85vh] overflow-y-auto"
+                  className="bg-surface w-full max-w-md rounded-t-2xl sm:rounded-xl p-5 sm:p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[85vh] overflow-y-auto"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-black text-gray-800">
-                      ตัวกรองข้อมูลรายงาน
-                    </h3>
+                  <div className="flex justify-between items-center mb-5">
+                    <div>
+                      <h3 className="text-xl font-black text-gray-800">
+                        กรองรายการ
+                      </h3>
+                      <p className="mt-1 text-xs font-medium text-gray-400">
+                        เลือกช่วงเวลาและหมวดหมู่ที่ต้องการดู
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedCategoryId(null);
+                        setUploadDateFilter("");
+                        setSlipsOnlyFilter(false);
+                        setSortByUpload(false);
+                        setSelectedMonth(now.getMonth() + 1);
+                        setSelectedYear(now.getFullYear());
+                      }}
+                      className="mr-2 text-xs font-bold text-indigo-600 hover:text-indigo-800"
+                    >
+                      รีเซ็ต
+                    </button>
                     <button
                       onClick={() => setShowCategoryFilter(false)}
-                      className="p-2 hover:bg-gray-100 rounded-full text-gray-400"
+                      aria-label="ปิดตัวกรอง"
+                      className="grid h-9 w-9 place-items-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
                     >
                       <X size={20} />
                     </button>
                   </div>
 
-                  <div className="space-y-6">
-                    {/* Month Slidable Selector Chips */}
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">
-                          เลือกเดือน
-                        </label>
-                        <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
-                          {selectedMonth === null ? "แสดงทุกเดือน" : "กดซ้ำเพื่อแสดงทุกเดือน"}
-                        </span>
-                      </div>
-                      <div className="flex gap-2 overflow-x-auto py-1.5 custom-scrollbar">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedMonth(null)}
-                          className={`shrink-0 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all border ${
-                            selectedMonth === null
-                              ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100 scale-105"
-                              : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
-                          }`}
-                        >
-                          ทุกเดือน
-                        </button>
-                        {[
-                          "ม.ค.",
-                          "ก.พ.",
-                          "มี.ค.",
-                          "เม.ย.",
-                          "พ.ค.",
-                          "มิ.ย.",
-                          "ก.ค.",
-                          "ส.ค.",
-                          "ก.ย.",
-                          "ต.ค.",
-                          "พ.ย.",
-                          "ธ.ค.",
-                        ].map((mName, idx) => {
-                          const mNum = idx + 1;
-                          const isSelected = selectedMonth === mNum;
-                          return (
-                            <button
-                              key={mNum}
-                              type="button"
-                              onClick={() =>
-                                setSelectedMonth(isSelected ? null : mNum)
-                              }
-                              className={`shrink-0 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all border ${
-                                isSelected
-                                  ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100 scale-105"
-                                  : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
-                              }`}
-                            >
-                              {mName}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Year Slidable Selector Chips */}
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">
-                          เลือกปี (ค.ศ. / พ.ศ.)
-                        </label>
-                        <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
-                          {selectedYear === null ? "แสดงทุกปี" : "กดซ้ำเพื่อแสดงทุกปี"}
-                        </span>
-                      </div>
-                      <div className="flex gap-2 overflow-x-auto py-1.5 custom-scrollbar">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedYear(null)}
-                          className={`shrink-0 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all border ${
-                            selectedYear === null
-                              ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100 scale-105"
-                              : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
-                          }`}
-                        >
-                          ทุกปี
-                        </button>
-                        {Array.from(
-                          { length: 30 },
-                          (_, i) => now.getFullYear() - 15 + i,
-                        ).map((year) => {
-                          const isSelected = selectedYear === year;
-                          return (
-                            <button
-                              key={year}
-                              type="button"
-                              onClick={() =>
-                                setSelectedYear(isSelected ? null : year)
-                              }
-                              className={`shrink-0 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all border ${
-                                isSelected
-                                  ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100 scale-105"
-                                  : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
-                              }`}
-                            >
-                              <span>{year}</span>
-                              <span className="text-[10px] opacity-70 ml-1 font-normal">
-                                ({year + 543})
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Upload Date Filter */}
-                    <div className="space-y-2 pt-2 border-t border-gray-100">
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">
-                        กรองตามวันที่อัพโหลดสลิป
+                  <div className="space-y-5">
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="space-y-1.5">
+                        <span className="text-xs font-bold text-gray-600">เดือนรายการ</span>
+                        <select value={selectedMonth ?? ""} onChange={(event) => setSelectedMonth(event.target.value ? Number(event.target.value) : null)} className="h-11 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm font-bold text-gray-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
+                          <option value="">ทุกเดือน</option>
+                          {["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"].map((month, index) => <option key={month} value={index + 1}>{month}</option>)}
+                        </select>
                       </label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="date"
-                          value={uploadDateFilter}
-                          onChange={(e) => setUploadDateFilter(e.target.value)}
-                          className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-bold text-gray-800"
-                        />
-                        {uploadDateFilter && (
-                          <button
-                            type="button"
-                            onClick={() => setUploadDateFilter("")}
-                            className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all"
-                            title="ล้างวันที่อัพโหลด"
-                          >
-                            <X size={16} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Slips Only & Sort By Upload Toggles */}
-                    <div className="space-y-3 pt-2 border-t border-gray-100">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <span className="text-xs font-bold text-gray-800 block">
-                            เฉพาะรายการที่มีสลิป (Slips Only)
-                          </span>
-                          <span className="text-[10px] text-gray-400 block">
-                            แสดงเฉพาะรายการที่มีไฟล์ภาพ/เอกสารสลิปแนบ
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setSlipsOnlyFilter(!slipsOnlyFilter)}
-                          className={`w-11 h-6 flex items-center rounded-full p-0.5 transition-colors ${
-                            slipsOnlyFilter ? "bg-indigo-600 justify-end" : "bg-gray-300 justify-start"
-                          }`}
-                        >
-                          <span className="bg-surface w-4 h-4 rounded-full shadow" />
-                        </button>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <span className="text-xs font-bold text-gray-800 block">
-                            เรียงตามเวลาอัพโหลดสลิปล่าสุด
-                          </span>
-                          <span className="text-[10px] text-gray-400 block">
-                            เรียงสลิปที่เพิ่งอัพโหลดเข้ามาให้อยู่บนสุด
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setSortByUpload(!sortByUpload)}
-                          className={`w-11 h-6 flex items-center rounded-full p-0.5 transition-colors ${
-                            sortByUpload ? "bg-indigo-600 justify-end" : "bg-gray-300 justify-start"
-                          }`}
-                        >
-                          <span className="bg-surface w-4 h-4 rounded-full shadow" />
-                        </button>
-                      </div>
+                      <label className="space-y-1.5">
+                        <span className="text-xs font-bold text-gray-600">ปีรายการ</span>
+                        <select value={selectedYear ?? ""} onChange={(event) => setSelectedYear(event.target.value ? Number(event.target.value) : null)} className="h-11 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm font-bold text-gray-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
+                          <option value="">ทุกปี</option>
+                          {Array.from({ length: 30 }, (_, index) => now.getFullYear() - 15 + index).map((year) => <option key={year} value={year}>{year + 543} ({year})</option>)}
+                        </select>
+                      </label>
                     </div>
 
                     {/* Category Filter Grid */}
@@ -455,27 +318,52 @@ const TransactionsPage = () => {
                       </div>
                     </div>
 
-                    <div className="flex gap-2 pt-4">
+                    <div className="border-t border-gray-100 pt-4">
                       <button
-                        onClick={() => {
-                          setSelectedCategoryId(null);
-                          setUploadDateFilter("");
-                          setSlipsOnlyFilter(false);
-                          setSortByUpload(false);
-                          setSelectedMonth(now.getMonth() + 1);
-                          setSelectedYear(now.getFullYear());
-                        }}
-                        className="flex-1 py-3 bg-gray-100 text-gray-600 rounded-2xl font-bold text-xs hover:bg-gray-200 transition-all"
+                        type="button"
+                        onClick={() => setShowAdvancedFilters((show) => !show)}
+                        className="flex w-full items-center justify-between text-left text-xs font-bold text-gray-600"
+                        aria-expanded={showAdvancedFilters}
                       >
-                        ล้างตัวกรองทั้งหมด
+                        ตัวเลือกเพิ่มเติม
+                        <ChevronDown size={17} className={`transition-transform ${showAdvancedFilters ? "rotate-180" : ""}`} />
                       </button>
-                      <button
-                        onClick={() => setShowCategoryFilter(false)}
-                        className="flex-1 py-3 bg-indigo-600 text-white rounded-2xl font-black text-xs shadow-lg shadow-indigo-100 active:scale-95 transition-all"
-                      >
-                        ตกลง
-                      </button>
+                      {showAdvancedFilters && (
+                        <div className="mt-3 space-y-4 rounded-lg bg-gray-50 p-3">
+                          <div className="space-y-1.5">
+                            <span className="text-xs font-bold text-gray-700">วันที่อัปโหลดสลิป</span>
+                            <DatePickerField
+                              value={uploadDateFilter}
+                              onChange={setUploadDateFilter}
+                              ariaLabel="เลือกวันที่อัปโหลดสลิป"
+                              placeholder="ทุกวันที่อัปโหลด"
+                            />
+                          </div>
+                          <label className="flex cursor-pointer items-center justify-between gap-3">
+                            <span>
+                              <span className="block text-xs font-bold text-gray-800">เฉพาะรายการที่มีสลิป</span>
+                              <span className="block text-[11px] text-gray-400">แสดงเฉพาะรายการที่มีไฟล์แนบ</span>
+                            </span>
+                            <input type="checkbox" checked={slipsOnlyFilter} onChange={(event) => setSlipsOnlyFilter(event.target.checked)} className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                          </label>
+                          <label className="flex cursor-pointer items-center justify-between gap-3">
+                            <span>
+                              <span className="block text-xs font-bold text-gray-800">เรียงตามเวลาอัปโหลดล่าสุด</span>
+                              <span className="block text-[11px] text-gray-400">ใช้เวลาอัปโหลดแทนวันที่รายการ</span>
+                            </span>
+                            <input type="checkbox" checked={sortByUpload} onChange={(event) => setSortByUpload(event.target.checked)} className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                          </label>
+                        </div>
+                      )}
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowCategoryFilter(false)}
+                      className="h-11 w-full rounded-lg bg-indigo-600 text-sm font-black text-white shadow-sm transition-colors hover:bg-indigo-700"
+                    >
+                      ดูรายการ
+                    </button>
                   </div>
                 </div>
               </div>
