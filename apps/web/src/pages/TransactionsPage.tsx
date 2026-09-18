@@ -13,6 +13,7 @@ import {
   RotateCcw,
   Receipt,
   ChevronDown,
+  Eye,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { deleteTransaction, getTransactions, updateTransaction } from "../services/transactionsService";
@@ -62,6 +63,7 @@ const TransactionsPage = () => {
   const [selectedTransaction, setSelectedTransaction] =
     useState<Transaction | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [isSlipViewerOpen, setIsSlipViewerOpen] = useState(false);
   const [order, setOrder] = useState<"asc" | "desc">("desc");
 
   // Fetch transactions
@@ -474,9 +476,10 @@ const TransactionsPage = () => {
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setSelectedTransaction(null);
-              setIsEditing(false);
+              if (e.target === e.currentTarget) {
+                setSelectedTransaction(null);
+                setIsEditing(false);
+                setIsSlipViewerOpen(false);
             }
           }}
         >
@@ -512,23 +515,15 @@ const TransactionsPage = () => {
                     รายละเอียดรายการ
                   </span>
                   <button
-                    onClick={() => setSelectedTransaction(null)}
+                    onClick={() => {
+                      setSelectedTransaction(null);
+                      setIsSlipViewerOpen(false);
+                    }}
                     className="p-1 hover:bg-gray-100 rounded-full transition-colors"
                   >
                     <X size={20} />
                   </button>
                 </div>
-
-                {selectedTransaction.slipImageUrl &&
-                  selectedTransaction.slipImageUrl.length > 0 && (
-                    <div className="mb-6 rounded-3xl overflow-hidden border border-gray-100 bg-gray-50 shadow-inner">
-                      <img
-                        src={selectedTransaction.slipImageUrl}
-                        alt="Receipt"
-                        className="w-full h-auto object-contain"
-                      />
-                    </div>
-                  )}
 
                 <div className="flex flex-col items-center text-center mb-8">
                   <div
@@ -551,6 +546,16 @@ const TransactionsPage = () => {
                       selectedTransaction.note ||
                       "ไม่มีคำอธิบาย"}
                   </p>
+                  {selectedTransaction.slipImageUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setIsSlipViewerOpen(true)}
+                      className="mt-4 inline-flex h-10 items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 text-sm font-bold text-emerald-800 transition-colors hover:bg-emerald-100"
+                    >
+                      <Eye size={17} />
+                      ดูสลิป
+                    </button>
+                  )}
                 </div>
 
                 <div className="space-y-4 bg-gray-50 p-6 rounded-3xl">
@@ -632,6 +637,37 @@ const TransactionsPage = () => {
                   )}
                   ลบ
                 </button>
+              </div>
+            </div>
+          )}
+
+          {isSlipViewerOpen && selectedTransaction.slipImageUrl && (
+            <div
+              className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm"
+              onClick={() => setIsSlipViewerOpen(false)}
+            >
+              <div
+                className="flex max-h-[92dvh] w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+                  <strong className="text-sm text-slate-900">รูปสลิป</strong>
+                  <button
+                    type="button"
+                    onClick={() => setIsSlipViewerOpen(false)}
+                    aria-label="ปิดรูปสลิป"
+                    className="grid h-9 w-9 place-items-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="min-h-0 overflow-auto bg-slate-100 p-3">
+                  {selectedTransaction.slipImageUrl.toLowerCase().includes(".pdf") ? (
+                    <iframe title="เอกสารสลิป" src={selectedTransaction.slipImageUrl} className="h-[75dvh] w-full rounded-lg bg-white" />
+                  ) : (
+                    <img src={selectedTransaction.slipImageUrl} alt="สลิปของรายการ" className="mx-auto max-h-[75dvh] max-w-full object-contain" />
+                  )}
+                </div>
               </div>
             </div>
           )}
