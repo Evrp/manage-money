@@ -153,6 +153,8 @@ export class TransactionsService {
       date,
       month,
       year,
+      targetMonth: month,
+      targetYear: year,
       ...paymentFields,
     });
 
@@ -273,7 +275,14 @@ export class TransactionsService {
       tMonth,
       tYear,
     );
-    const payloadToSet: any = { ...updateData, month, year, ...paymentFields };
+    const payloadToSet: any = {
+      ...updateData,
+      month,
+      year,
+      targetMonth: month,
+      targetYear: year,
+      ...paymentFields,
+    };
     delete payloadToSet.statementDueDate;
 
     // 1. Revert budget for old transaction if it was an expense

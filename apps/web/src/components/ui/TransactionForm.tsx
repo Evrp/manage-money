@@ -7,6 +7,7 @@ import {
   X,
   Image as ImageIcon,
   Loader2,
+  Eye,
 } from "lucide-react";
 import Calendar from "./Calendar";
 import { createCategory } from "../../services/categoriesService";
@@ -48,16 +49,24 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
     bankAccountId: initialData?.bankAccountId?._id || initialData?.bankAccountId || "",
     creditCardId: initialData?.creditCardId?._id || initialData?.creditCardId || "",
     statementDueDate: initialData?.statementDueDate ? new Date(initialData.statementDueDate).toISOString().slice(0, 10) : "",
-    targetMonth: initialData?.targetMonth || initialData?.month || defaultCycle.month,
-    targetYear: initialData?.targetYear || initialData?.year || defaultCycle.year,
+    // month/year is the persisted accounting period used by Budget and Analytics.
+    targetMonth: initialData?.month || initialData?.targetMonth || defaultCycle.month,
+    targetYear: initialData?.year || initialData?.targetYear || defaultCycle.year,
   });
   const [cycleManuallySelected, setCycleManuallySelected] = useState(
-    Boolean(initialData?.targetMonth || initialData?.targetYear || initialData?.isNextMonthCycle),
+    Boolean(
+      initialData?.targetMonth ||
+        initialData?.targetYear ||
+        initialData?.isNextMonthCycle ||
+        (initialData?.month && initialData.month !== defaultCycle.month) ||
+        (initialData?.year && initialData.year !== defaultCycle.year),
+    ),
   );
 
   const [isUploading, setIsUploading] = useState(false);
   const [showCreateCategory, setShowCreateCategory] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showAttachmentPreview, setShowAttachmentPreview] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
@@ -173,51 +182,23 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
                 className="hidden"
               />
               {formData.slipImageUrl ? (
-                <div className="relative w-full rounded-3xl overflow-hidden mb-4 border-2 border-dashed border-gray-100 bg-gray-50">
-                  {isPdfAttachment ? (
-                    <div className="p-6 flex items-center justify-between bg-rose-50 text-rose-700">
-                      <div className="flex items-center gap-3">
-                        <span className="bg-rose-200 p-3 rounded-2xl text-rose-600 font-bold">
-                          PDF
-                        </span>
-                        <div>
-                          <p className="font-bold text-sm">เอกสารสลิป PDF</p>
-                          <a
-                            href={formData.slipImageUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-xs font-semibold underline text-rose-500 hover:text-rose-700"
-                          >
-                            เปิดดูเอกสาร PDF
-                          </a>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() =>
-                          setFormData({ ...formData, slipImageUrl: "" })
-                        }
-                        className="bg-black/10 text-gray-700 p-2 rounded-full hover:bg-black/20 transition-all"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <img
-                        src={formData.slipImageUrl}
-                        alt="Slip"
-                        className="w-full h-auto block"
-                      />
-                      <button
-                        onClick={() =>
-                          setFormData({ ...formData, slipImageUrl: "" })
-                        }
-                        className="absolute top-2 right-2 bg-black/50 text-white p-1.5 rounded-full hover:bg-black/70 transition-all"
-                      >
-                        <X size={16} />
-                      </button>
-                    </>
-                  )}
+                <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowAttachmentPreview(true)}
+                    className="inline-flex min-w-0 items-center gap-2 text-left text-sm font-bold text-emerald-800"
+                  >
+                    <Eye size={18} />
+                    <span>{isPdfAttachment ? "ดูเอกสารสลิป PDF" : "ดูสลิปที่แนบ"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, slipImageUrl: "" })}
+                    aria-label="ลบไฟล์สลิปที่แนบ"
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-emerald-700 transition-colors hover:bg-emerald-100 hover:text-rose-600"
+                  >
+                    <X size={18} />
+                  </button>
                 </div>
               ) : (
                 <button
@@ -480,6 +461,22 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
           </div>
         </div>
       </div>
+      {showAttachmentPreview && formData.slipImageUrl && (
+        <div
+          className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm"
+          onClick={() => setShowAttachmentPreview(false)}
+        >
+          <div className="flex max-h-[92dvh] w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+              <strong className="text-sm text-slate-900">{isPdfAttachment ? "เอกสารสลิป" : "รูปสลิป"}</strong>
+              <button type="button" onClick={() => setShowAttachmentPreview(false)} aria-label="ปิดไฟล์สลิป" className="grid h-9 w-9 place-items-center rounded-lg text-slate-500 hover:bg-slate-100"><X size={20} /></button>
+            </div>
+            <div className="min-h-0 overflow-auto bg-slate-100 p-3">
+              {isPdfAttachment ? <iframe title="เอกสารสลิป" src={formData.slipImageUrl} className="h-[75dvh] w-full rounded-lg bg-white" /> : <img src={formData.slipImageUrl} alt="สลิปที่แนบ" className="mx-auto max-h-[75dvh] max-w-full object-contain" />}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
