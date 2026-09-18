@@ -28,6 +28,7 @@ import { PaymentMethod } from "@moneyflow/shared";
 import { useAuthStore } from "../../store/auth.store";
 import PaymentSourceSelect from "./PaymentSourceSelect";
 import DatePickerField from "./DatePickerField";
+import MonthPickerField from "./MonthPickerField";
 
 export interface SlipItemState {
   id: string; // unique local ID
@@ -46,6 +47,7 @@ export interface SlipItemState {
     isNextMonthCycle?: boolean;
     targetMonth?: number;
     targetYear?: number;
+    cycleManuallySelected?: boolean;
     suggestedCategory?: string;
     slipImageUrl?: string;
     documentType?: string;
@@ -73,7 +75,6 @@ export interface PendingSlipUpload {
 
 const getDefaultCycle = (dateString?: string) => {
   const date = dateString ? new Date(`${dateString}T12:00:00`) : new Date();
-  date.setMonth(date.getMonth() + 1);
   return { targetMonth: date.getMonth() + 1, targetYear: date.getFullYear() };
 };
 
@@ -199,6 +200,8 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
         statementDueDate: extracted.statementDueDate || "",
         referenceNumber: extracted.referenceNo || "",
       };
+      const savedDraft = savedDrafts[upload.id];
+      const draftDate = savedDraft?.date || extractedForm.date;
 
       return {
         id: `restored_${upload.id}`,
@@ -210,7 +213,13 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
         slipId: upload.id,
         requiresManualEntry: upload.status === "failed",
         errorMessage: upload.errorMessage || undefined,
-        formData: { ...extractedForm, ...savedDrafts[upload.id] },
+        formData: {
+          ...extractedForm,
+          ...savedDraft,
+          ...(savedDraft?.cycleManuallySelected
+            ? {}
+            : getDefaultCycle(draftDate)),
+        },
       };
     });
 
@@ -285,7 +294,9 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
               statementDueDate: extracted.statementDueDate || "",
               referenceNumber: extracted.referenceNo || "",
               isNextMonthCycle: false,
-              ...getDefaultCycle(slipDate),
+              ...(i.formData.cycleManuallySelected
+                ? {}
+                : getDefaultCycle(slipDate)),
               suggestedCategory: suggested,
               categoryId: matchedCategoryId || i.formData.categoryId,
               slipImageUrl: data.imageUrl,
@@ -1144,13 +1155,15 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                             <input
                               type="date"
                               value={item.formData.date}
-                              onChange={(e) =>
-                                handleUpdateItemForm(
-                                  item.id,
-                                  "date",
-                                  e.target.value,
-                                )
-                              }
+                              onChange={(e) => {
+                                const date = e.target.value;
+                                handleUpdateItemForm(item.id, "date", date);
+                                if (!item.formData.cycleManuallySelected) {
+                                  const cycle = getDefaultCycle(date);
+                                  handleUpdateItemForm(item.id, "targetMonth", cycle.targetMonth);
+                                  handleUpdateItemForm(item.id, "targetYear", cycle.targetYear);
+                                }
+                              }}
                               className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2 px-3 text-xs font-bold text-gray-700"
                             />
                           </div>
@@ -1179,21 +1192,28 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                             นับในรอบบัญชีเดือน
                           </label>
                           <div className="mt-2 flex items-center gap-3">
-                            <input
-                              type="month"
+                            <MonthPickerField
                               value={cycleInputValue(
                                 item.formData.targetMonth,
                                 item.formData.targetYear,
                               )}
-                              onChange={(event) => {
-                                if (!event.target.value) return;
-                                const [year, month] = event.target.value
+                              onChange={(value) => {
+                                if (!value) {
+                                  const cycle = getDefaultCycle(item.formData.date);
+                                  handleUpdateItemForm(item.id, "targetMonth", cycle.targetMonth);
+                                  handleUpdateItemForm(item.id, "targetYear", cycle.targetYear);
+                                  handleUpdateItemForm(item.id, "cycleManuallySelected", false);
+                                  return;
+                                }
+                                const [year, month] = value
                                   .split("-")
                                   .map(Number);
                                 handleUpdateItemForm(item.id, "targetMonth", month);
                                 handleUpdateItemForm(item.id, "targetYear", year);
+                                handleUpdateItemForm(item.id, "cycleManuallySelected", true);
                               }}
-                              className="min-h-10 min-w-0 flex-1 rounded-lg border border-indigo-200 bg-white px-3 text-sm font-bold text-indigo-950 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                              ariaLabel="เลือกเดือนรอบบัญชี"
+                              className="min-w-0 flex-1"
                             />
                             <span className="hidden text-xs font-bold text-indigo-700 sm:block">
                               เลือกเดือนได้เอง
