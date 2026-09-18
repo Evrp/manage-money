@@ -9,7 +9,8 @@ import {
   Loader2,
 } from "lucide-react";
 import Calendar from "./Calendar";
-import api from "../../services/api";
+import { createCategory } from "../../services/categoriesService";
+import { uploadSlipAttachment } from "../../services/slipsService";
 import { useCategories } from "../../hooks/useCategories";
 import CreateCategoryModal from "./CreateCategoryModal";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -103,14 +104,9 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
     }
 
     setIsUploading(true);
-    const uploadData = new FormData();
-    uploadData.append("file", file);
-
     try {
       // Use the reliable attachment endpoint for manual entries
-      const { data } = await api.post("/slips/attachment", uploadData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const data = await uploadSlipAttachment(file);
 
       setFormData({
         ...formData,
@@ -145,7 +141,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
   // Create Category Mutation
   const createCategoryMutation = useMutation({
     mutationFn: async (data: any) => {
-      const { data: newCat } = await api.post("/categories", {
+      const newCat = await createCategory({
         ...data,
         type: formData.type,
       });

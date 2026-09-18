@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import liff from "@line/liff";
 import { useAuthStore } from "../store/auth.store";
-import api from "../services/api";
+import { authenticateDevelopment, authenticateWithLine } from "../services/authService";
 
 export const useLIFF = (liffId: string) => {
   const [isReady, setIsReady] = useState(false);
@@ -14,7 +14,7 @@ export const useLIFF = (liffId: string) => {
         // Vite sets MODE to "development" when NODE_ENV=development. Do not
         // expose this bypass through a client-controlled environment variable.
         if (import.meta.env.MODE === "development") {
-          const response = await api.post("/auth/development");
+          const response = await authenticateDevelopment();
           const { user, accessToken } = response.data;
           setAuth(user, accessToken);
           setIsReady(true);
@@ -31,7 +31,7 @@ export const useLIFF = (liffId: string) => {
         const idToken = liff.getIDToken();
         if (idToken) {
           // Verify with backend
-          const response = await api.post("/auth/line", { idToken });
+          const response = await authenticateWithLine({ idToken });
           const { user, accessToken } = response.data; // Backend returns accessToken
           setAuth(user, accessToken);
           setIsReady(true);

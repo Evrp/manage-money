@@ -13,7 +13,9 @@ import {
   Calendar as CalendarIcon,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import api from "../services/api";
+import { getDashboardSummary } from "../services/dashboardService";
+import { createTransaction, getRecentTransactions } from "../services/transactionsService";
+import { confirmSlip, getPendingSlips } from "../services/slipsService";
 import TransactionForm from "../components/ui/TransactionForm";
 import BulkSlipUploadModal, {
   type PendingSlipUpload,
@@ -48,12 +50,7 @@ const HomePage = () => {
     refetch: refetchSummary,
   } = useQuery({
     queryKey: ["dashboard-summary", month, year],
-    queryFn: async () => {
-      const { data } = await api.get(
-        `/dashboard/summary?month=${month}&year=${year}`,
-      );
-      return data;
-    },
+    queryFn: () => getDashboardSummary({ month, year }),
   });
 
   // Fetch Recent Transactions
@@ -64,16 +61,13 @@ const HomePage = () => {
     refetch: refetchRecent,
   } = useQuery({
     queryKey: ["recent-transactions"],
-    queryFn: async () => {
-      const { data } = await api.get("/transactions?limit=5");
-      return data.data;
-    },
+    queryFn: async () => (await getRecentTransactions()).data,
   });
 
   const { data: categories = [] } = useCategories();
   const { data: pendingSlips = [] } = useQuery<PendingSlipUpload[]>({
     queryKey: ["pending-slips"],
-    queryFn: async () => (await api.get("/slips/pending")).data,
+    queryFn: getPendingSlips,
   });
 
   const enrichedRecentTransactions = useMemo(() => {
@@ -137,13 +131,10 @@ const HomePage = () => {
     try {
       if (ocrResult) {
         // If coming from OCR, use the confirm endpoint
-        await api.post("/slips/confirm", {
-          slipId: ocrResult.id,
-          transactionData: formData,
-        });
+        await confirmSlip({ slipId: ocrResult.id, transactionData: formData });
       } else {
         // Regular manual entry
-        await api.post("/transactions", formData);
+        await createTransaction(formData);
       }
 
       setShowManualForm(false);

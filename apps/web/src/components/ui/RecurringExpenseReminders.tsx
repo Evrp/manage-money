@@ -10,7 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import api from "../../services/api";
+import { createRecurringExpense, getRecurringExpenses, updateRecurringExpense } from "../../services/remindersService";
 
 type Category = { _id: string; name: string; icon?: string };
 type Reminder = {
@@ -48,7 +48,7 @@ export default function RecurringExpenseReminders({
   } = useQuery<Reminder[]>({
     queryKey: ["recurring-expenses"],
     queryFn: async () => {
-      const { data } = await api.get("/recurring-expenses");
+      const data = await getRecurringExpenses();
       if (!Array.isArray(data)) {
         throw new Error("Recurring expenses response must be an array");
       }
@@ -57,7 +57,7 @@ export default function RecurringExpenseReminders({
   });
   const createMutation = useMutation({
     mutationFn: async () =>
-      api.post("/recurring-expenses", {
+      createRecurringExpense({
         name: form.name.trim(),
         amount: Number(form.amount),
         dueDay: Number(form.dueDay),
@@ -73,7 +73,7 @@ export default function RecurringExpenseReminders({
   });
   const updateMutation = useMutation({
     mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) =>
-      api.put(`/recurring-expenses/${id}`, { enabled }),
+      updateRecurringExpense({ id, payload: { enabled } } ),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["recurring-expenses"] }),
   });

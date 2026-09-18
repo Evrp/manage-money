@@ -11,7 +11,7 @@ import {
   PieChart,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import api from "../services/api";
+import { getCategoryChart, getDashboardSummary, getMonthlyChart } from "../services/dashboardService";
 
 const AnalyticsPage: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -21,38 +21,19 @@ const AnalyticsPage: React.FC = () => {
   // Fetch Summary (Saving Rate, etc.)
   const { data: summary, isLoading: isSummaryLoading } = useQuery({
     queryKey: ["dashboard-summary", selectedMonth, selectedYear],
-    queryFn: async () => {
-      const { data } = await api.get("/dashboard/summary", {
-        params: { month: selectedMonth, year: selectedYear },
-      });
-      return data;
-    },
+    queryFn: () => getDashboardSummary({ month: selectedMonth, year: selectedYear }),
   });
 
   // Fetch Monthly Trends
   const { data: trends, isLoading: isTrendsLoading } = useQuery({
     queryKey: ["dashboard-trends", selectedYear],
-    queryFn: async () => {
-      const { data } = await api.get("/dashboard/chart/monthly", {
-        params: { year: selectedYear },
-      });
-      return data;
-    },
+    queryFn: () => getMonthlyChart({ year: selectedYear }),
   });
 
   // Fetch Category Breakdown
   const { data: responseData, isLoading: isBreakdownLoading } = useQuery({
     queryKey: ["dashboard-breakdown", selectedMonth, selectedYear, activeType],
-    queryFn: async () => {
-      const { data } = await api.get("/dashboard/chart/category", {
-        params: { 
-          month: selectedMonth, 
-          year: selectedYear, 
-          type: activeType // Back to 'type' as targetType might not be on server yet
-        },
-      });
-      return data;
-    },
+    queryFn: () => getCategoryChart({ month: selectedMonth, year: selectedYear, type: activeType }),
   });
 
   // Extremely robust extraction

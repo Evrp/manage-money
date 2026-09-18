@@ -11,11 +11,13 @@ import {
   Delete,
   Get,
   Param,
+  Query,
 } from "@nestjs/common";
 import { FileInterceptor, FilesInterceptor } from "@nestjs/platform-express";
 import { SlipsService } from "./slips.service";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { CreateTransactionDto } from "../transactions/dto/create-transaction.dto";
+import { PendingSlipsQueryDto } from "./dto/pending-slips-query.dto";
 
 const multerOptions = {
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
@@ -44,6 +46,11 @@ export class SlipsController {
   @Get("pending")
   findPending(@Request() req) {
     return this.slipsService.findPending(req.user.userId);
+  }
+
+  @Get("pending/view")
+  findPendingView(@Request() req, @Query() query: PendingSlipsQueryDto) {
+    return this.slipsService.findPendingView(req.user.userId, query);
   }
 
   @Post("upload")

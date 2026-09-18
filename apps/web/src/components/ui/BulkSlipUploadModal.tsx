@@ -15,15 +15,19 @@ import {
   ChevronRight,
   ChevronUp,
   Search,
+  CalendarDays,
+  ArrowDownUp,
 } from "lucide-react";
-import api from "../../services/api";
+import { confirmSlips, deletePendingSlip, getPendingSlipView, uploadSlip } from "../../services/slipsService";
+import { createCategory } from "../../services/categoriesService";
 import { useCategories } from "../../hooks/useCategories";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import CreateCategoryModal from "./CreateCategoryModal";
 import { useCreditCards } from "../../hooks/useCreditCards";
 import { PaymentMethod } from "@moneyflow/shared";
 import { useAuthStore } from "../../store/auth.store";
 import PaymentSourceSelect from "./PaymentSourceSelect";
+import DatePickerField from "./DatePickerField";
 
 export interface SlipItemState {
   id: string; // unique local ID
@@ -110,6 +114,9 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
   const [isCategoryPickerOpen, setIsCategoryPickerOpen] = useState(false);
   const [categorySearch, setCategorySearch] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [dateSort, setDateSort] = useState<"newest" | "oldest">("newest");
   
   // State for Full-Screen Image Lightbox
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
@@ -232,13 +239,8 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
 
   // Upload single slip and run OCR
   const uploadAndExtractSlip = async (item: SlipItemState) => {
-    const formData = new FormData();
-    formData.append("file", item.file);
-
     try {
-      const { data } = await api.post("/slips/upload", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const data = await uploadSlip(item.file);
 
       // Match suggested category with existing categories
       let matchedCategoryId = "";
@@ -291,6 +293,8 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
           };
         }),
       );
+      queryClient.invalidateQueries({ queryKey: ["pending-slips"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-slip-view"] });
     } catch (error: any) {
       console.error(`OCR Error for ${item.file.name}:`, error);
       setItems((prev) =>
@@ -378,8 +382,9 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
 
     try {
       if (item.slipId) {
-        await api.delete(`/slips/${item.slipId}`);
+        await deletePendingSlip(item.slipId);
         queryClient.invalidateQueries({ queryKey: ["pending-slips"] });
+        queryClient.invalidateQueries({ queryKey: ["pending-slip-view"] });
       }
       URL.revokeObjectURL(item.previewUrl);
       setItems((prev) => prev.filter((candidate) => candidate.id !== id));
@@ -439,6 +444,19 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
   const uploadingCount = items.filter((i) => i.status === "uploading").length;
   const pendingCount = items.length - validSuccessItems.length;
   const errorCount = items.filter((item) => item.status === "error").length;
+  const { data: pendingView, isLoading: isPendingViewLoading } = useQuery({
+    queryKey: ["pending-slip-view", fromDate, toDate, dateSort],
+    enabled: isOpen,
+    queryFn: () =>
+      getPendingSlipView({
+        fromDate: fromDate || undefined,
+        toDate: toDate || undefined,
+        sort: dateSort,
+      }),
+  });
+  const visibleItems = (pendingView?.ids || [])
+    .map((slipId) => items.find((item) => item.slipId === slipId))
+    .filter((item): item is SlipItemState => Boolean(item));
 
   // Batch Submit All Confirmed Items
   const handleSubmitAll = async () => {
@@ -479,7 +497,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
         },
       }));
 
-      await api.post("/slips/batch-confirm", { items: confirmPayload });
+      await confirmSlips({ items: confirmPayload });
 
       // Invalidate queries to refresh dashboard & transactions page
       queryClient.invalidateQueries({ queryKey: ["recent-transactions"] });
@@ -531,7 +549,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
           onClose={() => setShowCreateCategory(false)}
           onSubmit={async (data) => {
             try {
-              const { data: newCat } = await api.post("/categories", {
+              const newCat = await createCategory({
                 ...data,
                 type: activeItemForCategory
                   ? items.find((i) => i.id === activeItemForCategory)?.formData
@@ -748,7 +766,53 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                 <p className="font-bold">ยังไม่มีสลิปที่เลือก</p>
               </div>
             ) : (
-              items.map((item, index) => {
+              <>
+                <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-sm font-black text-slate-800">
+                      <CalendarDays size={17} className="text-indigo-600" />
+                      ค้นหารายการตามวันที่
+                      <span className="text-xs font-bold text-slate-400">{pendingView?.total ?? 0}/{items.length}</span>
+                    </div>
+                    {(fromDate || toDate) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFromDate("");
+                          setToDate("");
+                        }}
+                        className="text-xs font-bold text-indigo-700 hover:text-indigo-900"
+                      >
+                        ล้างวันที่
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_180px]">
+                    <DatePickerField value={fromDate} onChange={setFromDate} max={toDate || undefined} placeholder="ตั้งแต่วันที่" ariaLabel="ตั้งแต่วันที่" />
+                    <DatePickerField value={toDate} onChange={setToDate} min={fromDate || undefined} placeholder="ถึงวันที่" ariaLabel="ถึงวันที่" />
+                    <label className="relative block">
+                      <span className="sr-only">เรียงลำดับวันที่</span>
+                      <ArrowDownUp size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                      <select
+                        value={dateSort}
+                        onChange={(event) => setDateSort(event.target.value as "newest" | "oldest")}
+                        className="h-11 w-full appearance-none rounded-lg border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm font-bold text-slate-800 outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                      >
+                        <option value="newest">ใหม่สุดก่อน</option>
+                        <option value="oldest">เก่าสุดก่อน</option>
+                      </select>
+                    </label>
+                  </div>
+                </section>
+                {isPendingViewLoading ? (
+                  <div className="grid min-h-40 place-items-center rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm font-medium text-slate-500">
+                    <Loader2 size={22} className="animate-spin text-indigo-600" />
+                  </div>
+                ) : visibleItems.length === 0 ? (
+                  <div className="grid min-h-40 place-items-center rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm font-medium text-slate-500">
+                    ไม่พบสลิปในช่วงวันที่เลือก
+                  </div>
+                ) : visibleItems.map((item, index) => {
                 const filteredCats = categories.filter(
                   (c) => c.type === item.formData.type,
                 );
@@ -1141,7 +1205,8 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                     )}
                   </div>
                 );
-              })
+                })}
+              </>
             )}
 
             {/* Add More Files Card */}

@@ -15,7 +15,7 @@ import {
   Receipt,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import api from "../services/api";
+import { deleteTransaction, getTransactions, updateTransaction } from "../services/transactionsService";
 import { useCategories } from "../hooks/useCategories";
 import Calendar from "../components/ui/Calendar";
 import TransactionForm from "../components/ui/TransactionForm";
@@ -70,19 +70,16 @@ const TransactionsPage = () => {
       slipsOnlyFilter,
       sortByUpload,
     ],
-    queryFn: async () => {
-      const typeParam = activeTab === "all" ? "" : `&type=${activeTab}`;
-      const monthParam = selectedMonth !== null ? `&month=${selectedMonth}` : "";
-      const yearParam = selectedYear !== null ? `&year=${selectedYear}` : "";
-      const uploadDateParam = uploadDateFilter ? `&uploadDate=${uploadDateFilter}` : "";
-      const slipsOnlyParam = slipsOnlyFilter ? `&slipsOnly=true` : "";
-      const sortByUploadParam = sortByUpload ? `&sortByUpload=true` : "";
-
-      const { data } = await api.get(
-        `/transactions?limit=100${monthParam}${yearParam}${typeParam}${uploadDateParam}${slipsOnlyParam}${sortByUploadParam}&order=${order}`,
-      );
-      return data;
-    },
+    queryFn: () => getTransactions({
+      limit: 100,
+      ...(activeTab === "all" ? {} : { type: activeTab }),
+      ...(selectedMonth === null ? {} : { month: selectedMonth }),
+      ...(selectedYear === null ? {} : { year: selectedYear }),
+      ...(uploadDateFilter ? { uploadDate: uploadDateFilter } : {}),
+      ...(slipsOnlyFilter ? { slipsOnly: true } : {}),
+      ...(sortByUpload ? { sortByUpload: true } : {}),
+      order,
+    }),
   });
 
   const transactions = useMemo(() => transactionsResponse?.data || [], [transactionsResponse?.data]);
@@ -151,7 +148,7 @@ const TransactionsPage = () => {
 
   // Delete transaction mutation
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/transactions/${id}`),
+    mutationFn: (id: string) => deleteTransaction({ id }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       queryClient.invalidateQueries({ queryKey: ["budget-summary"] });
@@ -161,7 +158,7 @@ const TransactionsPage = () => {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) =>
-      api.patch(`/transactions/${id}`, data),
+      updateTransaction({ id, payload: data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       queryClient.invalidateQueries({ queryKey: ["budget-summary"] });

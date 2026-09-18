@@ -8,6 +8,7 @@ import { SlipUploadStatus } from "@moneyflow/shared";
 import sharp from "sharp";
 import { FirebaseService } from "../firebase/firebase.service";
 import { GeminiService } from "../gemini/gemini.service";
+import { PendingSlipsQueryDto } from "./dto/pending-slips-query.dto";
 
 @Injectable()
 export class SlipsService {
@@ -97,6 +98,34 @@ export class SlipsService {
         };
       }),
     );
+  }
+
+  async findPendingView(userId: string, query: PendingSlipsQueryDto) {
+    const filter: Record<string, any> = {
+      userId,
+      transactionId: { $exists: false },
+    };
+    if (query.fromDate || query.toDate) {
+      filter["extractedData.transactionDate"] = {
+        ...(query.fromDate ? { $gte: query.fromDate } : {}),
+        ...(query.toDate ? { $lte: query.toDate } : {}),
+      };
+    }
+
+    const direction = query.sort === "oldest" ? 1 : -1;
+    const uploads = await this.slipUploadModel
+      .find(filter)
+      .sort({
+        "extractedData.transactionDate": direction,
+        createdAt: direction,
+      })
+      .select("_id")
+      .lean();
+
+    return {
+      ids: uploads.map((upload) => upload._id.toString()),
+      total: uploads.length,
+    };
   }
 
   async removePending(userId: string, slipId: string) {

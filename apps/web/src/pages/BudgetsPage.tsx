@@ -12,7 +12,8 @@ import {
   Receipt,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import api from "../services/api";
+import { createCategory } from "../services/categoriesService";
+import { getBudgets, updateBudgetLimit } from "../services/budgetsService";
 import CreateCategoryModal from "../components/ui/CreateCategoryModal";
 import MonthYearPicker from "../components/ui/MonthYearPicker";
 import RecurringExpenseReminders from "../components/ui/RecurringExpenseReminders";
@@ -48,16 +49,13 @@ const BudgetsPage = () => {
   // Fetch budgets
   const { data: budgets, isLoading } = useQuery<Budget[]>({
     queryKey: ["budgets", month, year],
-    queryFn: async () => {
-      const { data } = await api.get(`/budgets?month=${month}&year=${year}`);
-      return data;
-    },
+    queryFn: () => getBudgets({ month, year }),
   });
 
   // Create category mutation
   const createCategoryMutation = useMutation({
     mutationFn: async (vars: any) => {
-      await api.post("/categories", { ...vars, type: "expense" });
+      await createCategory({ ...vars, type: "expense" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["budgets"] });
@@ -68,7 +66,7 @@ const BudgetsPage = () => {
   // Update limit mutation
   const updateLimitMutation = useMutation({
     mutationFn: async (vars: { categoryId: string; limit: number }) => {
-      await api.put("/budgets/limit", {
+      await updateBudgetLimit({
         categoryId: vars.categoryId,
         month,
         year,

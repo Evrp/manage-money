@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { CreditCard as CardIcon, Landmark, Plus, Save, WalletCards } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Layout from "../components/layout/Layout";
-import api from "../services/api";
+import { createCreditCard, getCreditCardStatement, recordCreditCardPayment, updateCreditCardStatementDueDate } from "../services/payment-methodsService";
 import { CreditCard, useCreditCards } from "../hooks/useCreditCards";
 import { CreditCardPaymentMode } from "@moneyflow/shared";
 import CreditCardInterestDetails from "../components/ui/CreditCardInterestDetails";
@@ -53,27 +53,21 @@ const CreditCardsPage = () => {
       current.getFullYear(),
     ],
     enabled: Boolean(selected),
-    queryFn: async () =>
-      (
-        await api.get(
-          `/credit-cards/${selected._id}/statements?month=${current.getMonth() + 1}&year=${current.getFullYear()}`,
-        )
-      ).data,
+    queryFn: () => getCreditCardStatement({ id: selected._id, month: current.getMonth() + 1, year: current.getFullYear() }),
   });
   useEffect(() => {
     setStatementDueDate("");
   }, [selected?._id, current.getMonth(), current.getFullYear()]);
   const create = useMutation({
     mutationFn: async () =>
-      api.post("/credit-cards", {
+      createCreditCard({
         ...form,
         creditLimit: Number(form.creditLimit),
         statementClosingDay: Number(form.statementClosingDay),
         paymentDueDay: Number(form.paymentDueDay),
         annualInterestRate: Number(form.annualInterestRate),
       }),
-    onSuccess: (response) => {
-      const created = response.data;
+    onSuccess: (created) => {
       queryClient.setQueryData<CreditCard[]>(["credit-cards"], (old = []) =>
         old.some((card) => card._id === created._id) ? old : [...old, created],
       );
@@ -89,13 +83,13 @@ const CreditCardsPage = () => {
   );
   const pay = useMutation({
     mutationFn: async () =>
-      api.post(`/credit-cards/${selected._id}/payments`, {
+      recordCreditCardPayment({ id: selected._id, payload: {
         statementMonth: current.getMonth() + 1,
         statementYear: current.getFullYear(),
         amount: Number(payment),
         mode: paymentMode,
         paidAt: new Date().toISOString(),
-      }),
+      }}),
     onSuccess: () => {
       setPayment("");
       queryClient.invalidateQueries({ queryKey: ["credit-card-statement"] });
@@ -103,10 +97,7 @@ const CreditCardsPage = () => {
   });
   const updateDueDate = useMutation({
     mutationFn: async () =>
-      api.put(
-        `/credit-cards/${selected._id}/statements/${current.getFullYear()}/${current.getMonth() + 1}`,
-        { dueDate: statementDueDate },
-      ),
+      updateCreditCardStatementDueDate({ id: selected._id, year: current.getFullYear(), month: current.getMonth() + 1, dueDate: statementDueDate }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["credit-card-statement"] });
     },
