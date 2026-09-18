@@ -7,6 +7,7 @@ import { QueryTransactionDto } from "./dto/query-transaction.dto";
 import { BudgetsService } from "../budgets/budgets.service";
 import { FirebaseService } from "../firebase/firebase.service";
 import { CreditCardsService } from "../credit-cards/credit-cards.service";
+import { BankAccountsService } from "../bank-accounts/bank-accounts.service";
 import { PaymentMethod } from "@moneyflow/shared";
 import { UpdateTransactionDto } from "./dto/update-transaction.dto";
 
@@ -17,6 +18,7 @@ export class TransactionsService {
     private readonly budgetsService: BudgetsService,
     private readonly firebaseService: FirebaseService,
     private readonly creditCardsService: CreditCardsService,
+    private readonly bankAccountsService: BankAccountsService,
   ) {}
 
   async findAll(userId: string, query: QueryTransactionDto) {
@@ -107,8 +109,8 @@ export class TransactionsService {
 
   async create(userId: string, createTransactionDto: CreateTransactionDto) {
     const date = new Date(createTransactionDto.date);
-    const creditCardFields = await this.resolveCreditCardFields(userId, createTransactionDto, date);
-    const { month, year } = creditCardFields.paymentMethod === PaymentMethod.CREDIT_CARD
+    const paymentFields = await this.resolvePaymentFields(userId, createTransactionDto, date);
+    const { month, year } = paymentFields.paymentMethod === PaymentMethod.CREDIT_CARD
       ? this.calculateCycleMonthYear(date)
       : this.calculateCycleMonthYear(date, createTransactionDto.isNextMonthCycle, createTransactionDto.targetMonth, createTransactionDto.targetYear);
 
@@ -127,19 +129,19 @@ export class TransactionsService {
       date,
       month,
       year,
-      ...creditCardFields,
+      ...paymentFields,
     });
 
     const saved = await transaction.save();
     if (
-      creditCardFields.paymentMethod === PaymentMethod.CREDIT_CARD &&
+      paymentFields.paymentMethod === PaymentMethod.CREDIT_CARD &&
       createTransactionDto.statementDueDate
     ) {
       await this.creditCardsService.updateStatementDueDate(
         userId,
         createTransactionDto.creditCardId as string,
-        (creditCardFields as any).statementMonth,
-        (creditCardFields as any).statementYear,
+        (paymentFields as any).statementMonth,
+        (paymentFields as any).statementYear,
         createTransactionDto.statementDueDate,
       );
     }
@@ -235,11 +237,11 @@ export class TransactionsService {
         ? updateData.targetYear
         : oldTransaction.targetYear;
 
-    const creditCardFields = await this.resolveCreditCardFields(userId, updateData, targetDate, oldTransaction);
-    const { month, year } = creditCardFields.paymentMethod === PaymentMethod.CREDIT_CARD
+    const paymentFields = await this.resolvePaymentFields(userId, updateData, targetDate, oldTransaction);
+    const { month, year } = paymentFields.paymentMethod === PaymentMethod.CREDIT_CARD
       ? this.calculateCycleMonthYear(targetDate)
       : this.calculateCycleMonthYear(targetDate, isNext, tMonth, tYear);
-    const payloadToSet: any = { ...updateData, month, year, ...creditCardFields };
+    const payloadToSet: any = { ...updateData, month, year, ...paymentFields };
     delete payloadToSet.statementDueDate;
 
     // 1. Revert budget for old transaction if it was an expense
@@ -271,11 +273,15 @@ export class TransactionsService {
     }
 
     const updateOperation: any = { $set: payloadToSet };
-    if (creditCardFields.paymentMethod !== PaymentMethod.CREDIT_CARD) {
+    if (paymentFields.paymentMethod !== PaymentMethod.CREDIT_CARD) {
       delete payloadToSet.creditCardId;
       delete payloadToSet.statementMonth;
       delete payloadToSet.statementYear;
       updateOperation.$unset = { creditCardId: 1, statementMonth: 1, statementYear: 1 };
+    }
+    if (paymentFields.paymentMethod !== PaymentMethod.BANK_TRANSFER) {
+      delete payloadToSet.bankAccountId;
+      updateOperation.$unset = { ...updateOperation.$unset, bankAccountId: 1 };
     }
 
     const newTransaction = await this.transactionModel.findOneAndUpdate(
@@ -286,14 +292,14 @@ export class TransactionsService {
 
     if (
       newTransaction &&
-      creditCardFields.paymentMethod === PaymentMethod.CREDIT_CARD &&
+      paymentFields.paymentMethod === PaymentMethod.CREDIT_CARD &&
       updateData.statementDueDate
     ) {
       await this.creditCardsService.updateStatementDueDate(
         userId,
-        (creditCardFields.creditCardId as Types.ObjectId).toString(),
-        (creditCardFields as any).statementMonth,
-        (creditCardFields as any).statementYear,
+        (paymentFields.creditCardId as Types.ObjectId).toString(),
+        (paymentFields as any).statementMonth,
+        (paymentFields as any).statementYear,
         updateData.statementDueDate,
       );
     }
@@ -380,19 +386,26 @@ export class TransactionsService {
     return result;
   }
 
-  private async resolveCreditCardFields(
+  private async resolvePaymentFields(
     userId: string,
-    data: { paymentMethod?: PaymentMethod; creditCardId?: string },
+    data: { paymentMethod?: PaymentMethod; bankAccountId?: string; creditCardId?: string },
     date: Date,
     existing?: Transaction,
   ) {
     const paymentMethod = data.paymentMethod ?? existing?.paymentMethod ?? PaymentMethod.CASH;
+    const existingAccountId = existing?.bankAccountId?.toString();
+    const bankAccountId = data.bankAccountId ?? existingAccountId;
     const existingCardId = existing?.creditCardId?.toString();
     const creditCardId = data.creditCardId ?? existingCardId;
-    if (paymentMethod !== PaymentMethod.CREDIT_CARD) return { paymentMethod };
+    if (paymentMethod === PaymentMethod.BANK_TRANSFER) {
+      if (!bankAccountId) throw new BadRequestException("bankAccountId is required for bank-transfer transactions");
+      await this.bankAccountsService.getOwnedAccount(userId, bankAccountId);
+      return { paymentMethod, bankAccountId: new Types.ObjectId(bankAccountId), creditCardId: undefined };
+    }
+    if (paymentMethod !== PaymentMethod.CREDIT_CARD) return { paymentMethod, bankAccountId: undefined, creditCardId: undefined };
     if (!creditCardId) throw new BadRequestException("creditCardId is required for credit-card transactions");
     const card = await this.creditCardsService.getOwnedCard(userId, creditCardId);
     const { statementMonth, statementYear } = this.creditCardsService.resolveStatementPeriod(card, date);
-    return { paymentMethod, creditCardId: new Types.ObjectId(creditCardId), statementMonth, statementYear };
+    return { paymentMethod, bankAccountId: undefined, creditCardId: new Types.ObjectId(creditCardId), statementMonth, statementYear };
   }
 }

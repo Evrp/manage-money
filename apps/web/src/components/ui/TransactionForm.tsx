@@ -14,6 +14,7 @@ import { useCategories } from "../../hooks/useCategories";
 import CreateCategoryModal from "./CreateCategoryModal";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCreditCards } from "../../hooks/useCreditCards";
+import PaymentSourceSelect from "./PaymentSourceSelect";
 
 interface TransactionFormProps {
   initialData?: any;
@@ -36,6 +37,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
     date: initialData?.date || new Date().toISOString().split("T")[0],
     slipImageUrl: initialData?.slipImageUrl || "",
     paymentMethod: initialData?.paymentMethod || PaymentMethod.CASH,
+    bankAccountId: initialData?.bankAccountId?._id || initialData?.bankAccountId || "",
     creditCardId: initialData?.creditCardId?._id || initialData?.creditCardId || "",
     statementDueDate: initialData?.statementDueDate ? new Date(initialData.statementDueDate).toISOString().slice(0, 10) : "",
   });
@@ -135,7 +137,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
       amount: Number(formData.amount),
       isNextMonthCycle,
       ...(formData.type !== CategoryType.EXPENSE
-        ? { paymentMethod: PaymentMethod.CASH, creditCardId: undefined }
+        ? { paymentMethod: PaymentMethod.CASH, bankAccountId: undefined, creditCardId: undefined }
         : {}),
     });
   };
@@ -306,19 +308,14 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
 
             {formData.type === CategoryType.EXPENSE && (
               <div className="space-y-3">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">
-                  วิธีชำระเงิน
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button type="button" onClick={() => setFormData({ ...formData, paymentMethod: PaymentMethod.CASH, creditCardId: "" })}
-                    className={`rounded-2xl p-3 text-sm font-bold border-2 ${formData.paymentMethod !== PaymentMethod.CREDIT_CARD ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-gray-100 text-gray-500"}`}>
-                    เงินสด / โอน
-                  </button>
-                  <button type="button" onClick={() => setFormData({ ...formData, paymentMethod: PaymentMethod.CREDIT_CARD })}
-                    className={`rounded-2xl p-3 text-sm font-bold border-2 ${formData.paymentMethod === PaymentMethod.CREDIT_CARD ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-gray-100 text-gray-500"}`}>
-                    บัตรเครดิต
-                  </button>
-                </div>
+                <PaymentSourceSelect
+                  paymentMethod={formData.paymentMethod}
+                  bankAccountId={formData.bankAccountId}
+                  creditCardId={formData.creditCardId}
+                  onChange={({ paymentMethod, bankAccountId, creditCardId }) =>
+                    setFormData({ ...formData, paymentMethod, bankAccountId: bankAccountId || "", creditCardId: creditCardId || "" })
+                  }
+                />
                 {formData.paymentMethod === PaymentMethod.CREDIT_CARD && (
                   <div className="space-y-2"><select value={formData.creditCardId} onChange={(e) => setFormData({ ...formData, creditCardId: e.target.value })}
                     className="w-full bg-gray-50 rounded-2xl p-4 font-bold text-gray-700 border-none focus:ring-4 focus:ring-indigo-500/10">

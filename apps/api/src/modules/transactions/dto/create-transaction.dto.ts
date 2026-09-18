@@ -53,11 +53,19 @@ export class CreateTransactionDto {
   targetYear?: number;
 
   @IsOptional() @IsEnum(PaymentMethod) paymentMethod?: PaymentMethod;
+  @ValidateIf((dto) => dto.paymentMethod === PaymentMethod.BANK_TRANSFER)
+  @IsNotEmpty()
+  @IsMongoId()
+  bankAccountId?: string;
   @ValidateIf((dto) => dto.paymentMethod === PaymentMethod.CREDIT_CARD)
-  @IsNotEmpty() @IsMongoId() creditCardId?: string;
+  @IsNotEmpty()
+  @IsMongoId()
+  creditCardId?: string;
 
   @ValidateIf((dto) => dto.paymentMethod === PaymentMethod.CREDIT_CARD)
-  @IsOptional() @IsDateString() statementDueDate?: string;
+  @IsOptional()
+  @IsDateString()
+  statementDueDate?: string;
 
   @IsOptional() @IsString() documentType?: string;
   @IsOptional() @IsNumber() cashAdvanceAmount?: number;

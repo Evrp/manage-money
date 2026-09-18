@@ -46,6 +46,9 @@ export class Transaction extends Document implements ITransaction {
   @Prop({ type: String, enum: PaymentMethod, default: PaymentMethod.CASH })
   paymentMethod: PaymentMethod;
 
+  @Prop({ type: Types.ObjectId, ref: "BankAccount" })
+  bankAccountId?: string;
+
   @Prop({ type: Types.ObjectId, ref: "CreditCard" })
   creditCardId?: string;
 

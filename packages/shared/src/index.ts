@@ -6,6 +6,7 @@ export {
   type ISlipData,
 } from "./types/transaction.interface";
 export { type IBudget } from "./types/budget.interface";
+export { type IBankAccount } from "./types/bank-account.interface";
 export { type IRecurringExpense } from "./types/recurring-expense.interface";
 export {
   SlipUploadStatus,

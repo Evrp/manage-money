@@ -21,8 +21,8 @@ const navigation = [
   {
     to: "/credit-cards",
     icon: CreditCard,
-    label: "บัตรเครดิต",
-    caption: "cards",
+    label: "ช่องทางชำระเงิน",
+    caption: "payment-methods",
   },
   { to: "/profile", icon: User, label: "โปรไฟล์", caption: "profile" },
 ];

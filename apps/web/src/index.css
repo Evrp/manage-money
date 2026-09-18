@@ -177,7 +177,7 @@
 .app-main > div > header { flex-wrap: wrap; gap: 16px; }
 .page-insights > .analytics-grid { display: grid; gap: 22px; }
 .analytics-grid > :first-child { grid-column: 1 / -1; }
-.page-cards input { min-width: 0; }
+.page-payment-methods input { min-width: 0; }
 .credit-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 18px; padding: 4px; }
 .credit-card-grid > button { min-height: 165px; min-width: 0; }
 .budget-category-grid { display: grid; gap: 20px; }
@@ -200,7 +200,7 @@
 [data-theme="dark"] .sidebar-note a, [data-theme="dark"] .account-avatar, [data-theme="dark"] .action-tile > svg { color: #88d6be; }
 [data-theme="dark"] .theme-option[aria-pressed="true"] { border-color: #88d6be; }
 [data-theme="dark"] :focus-visible { outline-color: #88d6be; }
-.page-transactions > div > header h1, .page-budgets > div > header h1, .page-cards h1, .page-insights h1 { font-size: 30px; }
+.page-transactions > div > header h1, .page-budgets > div > header h1, .page-payment-methods h1, .page-insights h1 { font-size: 30px; }
 @media (min-width: 768px) {
   .budget-category-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .app-main { padding: 36px 32px 116px; }

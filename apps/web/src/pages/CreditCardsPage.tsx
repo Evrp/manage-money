@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
-import { CreditCard as CardIcon, Plus, Save, WalletCards } from "lucide-react";
+import { CreditCard as CardIcon, Landmark, Plus, Save, WalletCards } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Layout from "../components/layout/Layout";
 import api from "../services/api";
 import { CreditCard, useCreditCards } from "../hooks/useCreditCards";
 import { CreditCardPaymentMode } from "@moneyflow/shared";
 import CreditCardInterestDetails from "../components/ui/CreditCardInterestDetails";
+import { useBankAccounts } from "../hooks/useBankAccounts";
+import CreateBankAccountModal from "../components/ui/CreateBankAccountModal";
 
 interface Statement {
   totalAmount: number;
@@ -26,8 +28,10 @@ const money = (value: number) =>
 const CreditCardsPage = () => {
   const queryClient = useQueryClient();
   const { data: cards = [], isLoading, isError } = useCreditCards();
+  const { data: bankAccounts = [], isLoading: isBankAccountsLoading } = useBankAccounts();
   const [selectedId, setSelectedId] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [showBankAccountForm, setShowBankAccountForm] = useState(false);
   const defaultForm = {
     name: "",
     issuer: "",
@@ -116,20 +120,37 @@ const CreditCardsPage = () => {
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
               Payment instruments
             </p>
-            <h1 className="text-2xl font-black">บัตรและการชำระเงิน</h1>
+            <h1 className="text-2xl font-black">ช่องทางชำระเงิน</h1>
             <p className="text-sm text-gray-500 mt-2">
-              ติดตามวงเงินและจัดการยอดชำระในที่เดียว
+              จัดการบัญชีธนาคาร บัตรเครดิต และการชำระเงินในที่เดียว
             </p>
           </div>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            aria-label={showForm ? "ปิดฟอร์มเพิ่มบัตร" : "เพิ่มบัตรเครดิต"}
-            aria-expanded={showForm}
-            className="p-3 rounded-2xl bg-indigo-600 text-white"
-          >
-            <Plus size={20} />
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowBankAccountForm(true)}
+              aria-label="เพิ่มบัญชีธนาคาร"
+              title="เพิ่มบัญชีธนาคาร"
+              className="grid h-11 w-11 place-items-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 transition-colors hover:bg-emerald-100"
+            >
+              <Landmark size={20} />
+            </button>
+            <button
+              onClick={() => setShowForm(!showForm)}
+              aria-label={showForm ? "ปิดฟอร์มเพิ่มบัตร" : "เพิ่มบัตรเครดิต"}
+              aria-expanded={showForm}
+              title="เพิ่มบัตรเครดิต"
+              className="grid h-11 w-11 place-items-center rounded-xl bg-indigo-600 text-white transition-colors hover:bg-indigo-700"
+            >
+              <Plus size={20} />
+            </button>
+          </div>
         </header>
+        {showBankAccountForm && (
+          <CreateBankAccountModal
+            onClose={() => setShowBankAccountForm(false)}
+            onCreated={() => setShowBankAccountForm(false)}
+          />
+        )}
         {showForm && (
           <div className="bg-surface rounded-3xl p-5 space-y-3 shadow-sm">
             <h2 className="font-black">เพิ่มบัตร (เก็บเฉพาะเลขท้าย 4 ตัว)</h2>
@@ -192,6 +213,39 @@ const CreditCardsPage = () => {
             </button>
           </div>
         )}
+        <section className="space-y-3">
+          <div className="flex items-center justify-between px-1">
+            <div>
+              <h2 className="font-black text-slate-900">บัญชีธนาคาร</h2>
+              <p className="mt-1 text-sm text-slate-500">เลือกบัญชีนี้ได้เมื่อบันทึกรายจ่าย</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowBankAccountForm(true)}
+              className="grid h-9 w-9 place-items-center rounded-lg text-emerald-700 hover:bg-emerald-50"
+              aria-label="เพิ่มบัญชีธนาคาร"
+              title="เพิ่มบัญชีธนาคาร"
+            >
+              <Plus size={18} />
+            </button>
+          </div>
+          {isBankAccountsLoading ? (
+            <p className="text-sm text-slate-400">กำลังโหลดบัญชี...</p>
+          ) : bankAccounts.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-5 py-6 text-sm text-slate-500">
+              ยังไม่มีบัญชีธนาคาร
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {bankAccounts.map((account) => (
+                <div key={account._id} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4">
+                  <span className="grid h-10 w-10 place-items-center rounded-lg bg-emerald-50 text-emerald-700"><Landmark size={19} /></span>
+                  <span className="min-w-0"><strong className="block truncate text-sm text-slate-900">{account.name}</strong><small className="block truncate text-slate-500">{account.bankName}{account.last4 ? ` · ••••${account.last4}` : ""}</small></span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
         {isLoading && <p className="text-gray-400">กำลังโหลด...</p>}
         {isError && (
           <p className="rounded-2xl bg-rose-50 p-4 text-sm font-bold text-rose-700">

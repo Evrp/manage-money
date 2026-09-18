@@ -23,6 +23,7 @@ import CreateCategoryModal from "./CreateCategoryModal";
 import { useCreditCards } from "../../hooks/useCreditCards";
 import { PaymentMethod } from "@moneyflow/shared";
 import { useAuthStore } from "../../store/auth.store";
+import PaymentSourceSelect from "./PaymentSourceSelect";
 
 export interface SlipItemState {
   id: string; // unique local ID
@@ -44,6 +45,8 @@ export interface SlipItemState {
     suggestedCategory?: string;
     slipImageUrl?: string;
     documentType?: string;
+    paymentMethod?: PaymentMethod;
+    bankAccountId?: string;
     creditCardId?: string;
     creditCardLast4?: string;
     feeAmount?: string;
@@ -270,6 +273,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
               note: extracted.toName || extracted.toBank || "",
               type: isIncome ? "income" : "expense",
               documentType: extracted.documentType,
+              paymentMethod: matchedCard ? PaymentMethod.CREDIT_CARD : PaymentMethod.CASH,
               creditCardId: matchedCard?._id || "",
               creditCardLast4: extracted.creditCardLast4 || "",
               feeAmount: extracted.feeAmount != null ? String(extracted.feeAmount) : "",
@@ -428,7 +432,8 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
       item.slipId &&
       item.formData.amount &&
       item.formData.categoryId &&
-      (item.formData.documentType === undefined || item.formData.documentType === "bank_transfer" || !!item.formData.creditCardId),
+      (item.formData.documentType === undefined || item.formData.documentType === "bank_transfer" || !!item.formData.creditCardId) &&
+      (item.formData.paymentMethod !== PaymentMethod.BANK_TRANSFER || !!item.formData.bankAccountId),
   );
 
   const uploadingCount = items.filter((i) => i.status === "uploading").length;
@@ -460,7 +465,10 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
             paymentMethod: PaymentMethod.CREDIT_CARD,
             creditCardId: item.formData.creditCardId,
             statementDueDate: item.formData.statementDueDate || undefined,
-          } : {}),
+          } : item.formData.paymentMethod === PaymentMethod.BANK_TRANSFER ? {
+            paymentMethod: PaymentMethod.BANK_TRANSFER,
+            bankAccountId: item.formData.bankAccountId,
+          } : { paymentMethod: PaymentMethod.CASH }),
           documentType: item.formData.documentType,
           cashAdvanceAmount: item.formData.documentType === "cash_advance" ? Number(item.formData.amount) : undefined,
           feeAmount: item.formData.feeAmount ? Number(item.formData.feeAmount) : undefined,
@@ -952,26 +960,17 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                           </div>
                         </div>
 
-                        {item.formData.documentType && item.formData.documentType !== "bank_transfer" && (
-                          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-black text-amber-900">ตรวจพบใบเสร็จบัตรเครดิต</span>
-                              <span className="text-[10px] font-bold text-amber-700">{item.formData.documentType === "cash_advance" ? "เบิกถอนเงินสด" : "ใบแจ้งยอด"}</span>
-                            </div>
-                            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-amber-900">
-                              <span>บัตร ••••{item.formData.creditCardLast4 || "ไม่พบ"}</span>
-                              <span>ค่าธรรมเนียม ฿{Number(item.formData.feeAmount || 0).toLocaleString()}</span>
-                              <span>ดอกเบี้ย {item.formData.receiptInterestRate || "-"}% ต่อปี</span>
-                              <span>ขั้นต่ำ {item.formData.minimumPaymentRate || "-"}%</span>
-                            </div>
-                            <label className="block text-[10px] font-bold text-amber-800">วันครบกำหนดจากใบเสร็จ</label>
-                            <input type="date" value={item.formData.statementDueDate || ""} onChange={(e) => handleUpdateItemForm(item.id, "statementDueDate", e.target.value)} className="w-full rounded-xl bg-surface border border-amber-200 p-2 text-xs font-bold" />
-                            <select value={item.formData.creditCardId || ""} onChange={(e) => handleUpdateItemForm(item.id, "creditCardId", e.target.value)} className="w-full rounded-xl bg-surface border border-amber-200 p-2 text-xs font-bold">
-                              <option value="">เลือกบัตรเครดิตเพื่อจับคู่</option>
-                              {creditCards.map((card: any) => <option key={card._id} value={card._id}>{card.name} ••••{card.last4}</option>)}
-                            </select>
-                            {!item.formData.creditCardId && <p className="text-[10px] font-bold text-red-600">กรุณาเลือกบัตรก่อนยืนยันรายการ</p>}
-                          </div>
+                        {item.formData.type === "expense" && (
+                          <PaymentSourceSelect
+                            paymentMethod={item.formData.paymentMethod}
+                            bankAccountId={item.formData.bankAccountId}
+                            creditCardId={item.formData.creditCardId}
+                            onChange={({ paymentMethod, bankAccountId, creditCardId }) => {
+                              handleUpdateItemForm(item.id, "paymentMethod", paymentMethod);
+                              handleUpdateItemForm(item.id, "bankAccountId", bankAccountId || "");
+                              handleUpdateItemForm(item.id, "creditCardId", creditCardId || "");
+                            }}
+                          />
                         )}
 
                         {/* Amount & Type Input Row */}

@@ -16,6 +16,7 @@ import { AdvisorModule } from "./modules/advisor/advisor.module";
 import { GeminiModule } from "./modules/gemini/gemini.module";
 import { CreditCardsModule } from "./modules/credit-cards/credit-cards.module";
 import { RemindersModule } from "./modules/reminders/reminders.module";
+import { BankAccountsModule } from "./modules/bank-accounts/bank-accounts.module";
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { RemindersModule } from "./modules/reminders/reminders.module";
     GeminiModule,
     CreditCardsModule,
     RemindersModule,
+    BankAccountsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

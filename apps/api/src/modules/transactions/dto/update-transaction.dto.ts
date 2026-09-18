@@ -22,6 +22,9 @@ export class UpdateTransactionDto {
   @IsOptional() @IsNumber() targetMonth?: number;
   @IsOptional() @IsNumber() targetYear?: number;
   @IsOptional() @IsEnum(PaymentMethod) paymentMethod?: PaymentMethod;
+  @ValidateIf((dto) => dto.paymentMethod === PaymentMethod.BANK_TRANSFER)
+  @IsMongoId()
+  bankAccountId?: string;
   @ValidateIf((dto) => dto.paymentMethod === PaymentMethod.CREDIT_CARD)
   @IsMongoId()
   creditCardId?: string;

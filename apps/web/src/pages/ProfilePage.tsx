@@ -164,7 +164,7 @@ export default function ProfilePage() {
             <Link className="setting-link" to="/credit-cards">
               <CreditCard size={21} />
               <span>
-                บัตรเครดิต<small>ดูยอดค้างชำระและวันครบกำหนด</small>
+                ช่องทางชำระเงิน<small>จัดการบัญชีธนาคารและบัตรเครดิต</small>
               </span>
               <ArrowUpRight size={18} />
             </Link>

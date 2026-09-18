@@ -31,6 +31,7 @@ export interface ITransaction {
   isAutoImported: boolean;
   aiConfidence?: number;
   paymentMethod?: PaymentMethod;
+  bankAccountId?: string;
   creditCardId?: string;
   statementMonth?: number;
   statementYear?: number;

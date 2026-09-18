@@ -9,6 +9,7 @@ import {
 import { Category, CategorySchema } from "../../schemas/category.schema";
 import { BudgetsModule } from "../budgets/budgets.module";
 import { CreditCardsModule } from "../credit-cards/credit-cards.module";
+import { BankAccountsModule } from "../bank-accounts/bank-accounts.module";
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { CreditCardsModule } from "../credit-cards/credit-cards.module";
     ]),
     BudgetsModule,
     CreditCardsModule,
+    BankAccountsModule,
   ],
   controllers: [TransactionsController],
   providers: [TransactionsService],

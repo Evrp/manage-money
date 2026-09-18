@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import {
   Bell,
-  BellOff,
   CalendarDays,
   CheckCircle2,
   Clock3,
@@ -19,7 +18,6 @@ type Reminder = {
   name: string;
   amount: number;
   dueDay: number;
-  reminderTime: string;
   enabled: boolean;
   categoryId?: Category;
 };
@@ -49,7 +47,13 @@ export default function RecurringExpenseReminders({
     isError,
   } = useQuery<Reminder[]>({
     queryKey: ["recurring-expenses"],
-    queryFn: async () => (await api.get("/recurring-expenses")).data,
+    queryFn: async () => {
+      const { data } = await api.get("/recurring-expenses");
+      if (!Array.isArray(data)) {
+        throw new Error("Recurring expenses response must be an array");
+      }
+      return data;
+    },
   });
   const createMutation = useMutation({
     mutationFn: async () =>

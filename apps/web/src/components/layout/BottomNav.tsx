@@ -11,7 +11,7 @@ const items = [
   { to: "/transactions", icon: List, label: "รายการ" },
   { to: "/budgets", icon: Target, label: "งบประมาณ" },
   { to: "/analytics", icon: PieChart, label: "วิเคราะห์" },
-  { to: "/credit-cards", icon: CreditCard, label: "บัตร" },
+  { to: "/credit-cards", icon: CreditCard, label: "ชำระเงิน" },
 ];
 export default function BottomNav() {
   return (
