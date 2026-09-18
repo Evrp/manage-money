@@ -12,17 +12,27 @@ export class DashboardController {
     @Request() req,
     @Query("month") month: number,
     @Query("year") year: number,
+    @Query("basis") basis?: "budget" | "transaction",
   ) {
     return this.dashboardService.getSummary(
       req.user.userId,
       Number(month),
       Number(year),
+      basis === "transaction" ? "transaction" : "budget",
     );
   }
 
   @Get("chart/monthly")
-  getMonthlyChart(@Request() req, @Query("year") year: number) {
-    return this.dashboardService.getMonthlyChart(req.user.userId, Number(year));
+  getMonthlyChart(
+    @Request() req,
+    @Query("year") year: number,
+    @Query("basis") basis?: "budget" | "transaction",
+  ) {
+    return this.dashboardService.getMonthlyChart(
+      req.user.userId,
+      Number(year),
+      basis === "transaction" ? "transaction" : "budget",
+    );
   }
 
   @Get("chart/category")
@@ -32,6 +42,7 @@ export class DashboardController {
     @Query("year") year: number,
     @Query("type") type?: string,
     @Query("targetType") targetType?: string,
+    @Query("basis") basis?: "budget" | "transaction",
   ) {
     const finalType = type || targetType;
     return this.dashboardService.getCategoryBreakdown(
@@ -39,6 +50,7 @@ export class DashboardController {
       Number(month),
       Number(year),
       finalType,
+      basis === "transaction" ? "transaction" : "budget",
     );
   }
 }

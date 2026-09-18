@@ -131,15 +131,12 @@ export class TransactionsService {
       createTransactionDto,
       date,
     );
-    const { month, year } =
-      paymentFields.paymentMethod === PaymentMethod.CREDIT_CARD
-        ? this.calculateCycleMonthYear(date)
-        : this.calculateCycleMonthYear(
-            date,
-            createTransactionDto.isNextMonthCycle,
-            createTransactionDto.targetMonth,
-            createTransactionDto.targetYear,
-          );
+    const { month, year } = this.calculateCycleMonthYear(
+      date,
+      createTransactionDto.isNextMonthCycle,
+      createTransactionDto.targetMonth,
+      createTransactionDto.targetYear,
+    );
 
     // Extract path from imageUrl if it is a full URL
     let slipImageUrl = createTransactionDto.slipImageUrl;
@@ -270,10 +267,12 @@ export class TransactionsService {
       targetDate,
       oldTransaction,
     );
-    const { month, year } =
-      paymentFields.paymentMethod === PaymentMethod.CREDIT_CARD
-        ? this.calculateCycleMonthYear(targetDate)
-        : this.calculateCycleMonthYear(targetDate, isNext, tMonth, tYear);
+    const { month, year } = this.calculateCycleMonthYear(
+      targetDate,
+      isNext,
+      tMonth,
+      tYear,
+    );
     const payloadToSet: any = { ...updateData, month, year, ...paymentFields };
     delete payloadToSet.statementDueDate;
 

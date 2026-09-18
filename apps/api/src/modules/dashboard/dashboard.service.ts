@@ -3,20 +3,38 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { Transaction } from "../../schemas/transaction.schema";
 
+export type AnalyticsBasis = "budget" | "transaction";
+
 @Injectable()
 export class DashboardService {
   constructor(
     @InjectModel(Transaction.name) private transactionModel: Model<Transaction>,
   ) {}
 
-  async getSummary(userId: string, month: number, year: number) {
+  private getPeriodMatch(month: number, year: number, basis: AnalyticsBasis) {
+    if (basis === "budget") return { month: Number(month), year: Number(year) };
+
+    return {
+      date: {
+        $gte: new Date(year, month - 1, 1),
+        $lt: new Date(year, month, 1),
+      },
+    };
+  }
+
+  async getSummary(
+    userId: string,
+    month: number,
+    year: number,
+    basis: AnalyticsBasis = "budget",
+  ) {
     const userObjectId = new Types.ObjectId(userId);
+    const periodMatch = this.getPeriodMatch(month, year, basis);
     const transactions = await this.transactionModel.aggregate([
       {
         $match: {
           userId: { $in: [userId, userObjectId] },
-          month: Number(month),
-          year: Number(year),
+          ...periodMatch,
         },
       },
       {
@@ -37,8 +55,7 @@ export class DashboardService {
       {
         $match: {
           userId: { $in: [userId, userObjectId] },
-          month: Number(month),
-          year: Number(year),
+          ...periodMatch,
           type: "expense",
         },
       },
@@ -89,18 +106,31 @@ export class DashboardService {
     };
   }
 
-  async getMonthlyChart(userId: string, year: number) {
+  async getMonthlyChart(
+    userId: string,
+    year: number,
+    basis: AnalyticsBasis = "budget",
+  ) {
     const userObjectId = new Types.ObjectId(userId);
+    const match =
+      basis === "budget"
+        ? { year: Number(year) }
+        : {
+            date: { $gte: new Date(year, 0, 1), $lt: new Date(year + 1, 0, 1) },
+          };
     const data = await this.transactionModel.aggregate([
       {
         $match: {
           userId: { $in: [userId, userObjectId] },
-          year: Number(year),
+          ...match,
         },
       },
       {
         $group: {
-          _id: { month: "$month", type: "$type" },
+          _id: {
+            month: basis === "budget" ? "$month" : { $month: "$date" },
+            type: "$type",
+          },
           total: { $sum: "$amount" },
         },
       },
@@ -129,17 +159,18 @@ export class DashboardService {
     month: number,
     year: number,
     transactionType: string,
+    basis: AnalyticsBasis = "budget",
   ) {
     const userObjectId = new Types.ObjectId(userId);
     // Explicitly set the filter type to ensure no leakage
     const reqType = transactionType === "income" ? "income" : "expense";
+    const periodMatch = this.getPeriodMatch(month, year, basis);
 
     const results = await this.transactionModel.aggregate([
       {
         $match: {
           userId: { $in: [userId, userObjectId] },
-          month: Number(month),
-          year: Number(year),
+          ...periodMatch,
           type: reqType,
         },
       },
@@ -184,6 +215,7 @@ export class DashboardService {
       debug: {
         receivedType: transactionType,
         determinedType: reqType,
+        basis,
         userId,
       },
       data: results,

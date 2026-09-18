@@ -11,29 +11,31 @@ import {
   PieChart,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { getCategoryChart, getDashboardSummary, getMonthlyChart } from "../services/dashboardService";
+import { AnalyticsBasis, getCategoryChart, getDashboardSummary, getMonthlyChart } from "../services/dashboardService";
 
 const AnalyticsPage: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [activeType, setActiveType] = useState<"expense" | "income">("expense");
+  const [analyticsBasis, setAnalyticsBasis] = useState<AnalyticsBasis>("budget");
+  const basisLabel = analyticsBasis === "budget" ? "รอบงบประมาณ" : "วันที่ทำรายการ";
 
   // Fetch Summary (Saving Rate, etc.)
   const { data: summary, isLoading: isSummaryLoading } = useQuery({
-    queryKey: ["dashboard-summary", selectedMonth, selectedYear],
-    queryFn: () => getDashboardSummary({ month: selectedMonth, year: selectedYear }),
+    queryKey: ["dashboard-summary", selectedMonth, selectedYear, analyticsBasis],
+    queryFn: () => getDashboardSummary({ month: selectedMonth, year: selectedYear, basis: analyticsBasis }),
   });
 
   // Fetch Monthly Trends
   const { data: trends, isLoading: isTrendsLoading } = useQuery({
-    queryKey: ["dashboard-trends", selectedYear],
-    queryFn: () => getMonthlyChart({ year: selectedYear }),
+    queryKey: ["dashboard-trends", selectedYear, analyticsBasis],
+    queryFn: () => getMonthlyChart({ year: selectedYear, basis: analyticsBasis }),
   });
 
   // Fetch Category Breakdown
   const { data: responseData, isLoading: isBreakdownLoading } = useQuery({
-    queryKey: ["dashboard-breakdown", selectedMonth, selectedYear, activeType],
-    queryFn: () => getCategoryChart({ month: selectedMonth, year: selectedYear, type: activeType }),
+    queryKey: ["dashboard-breakdown", selectedMonth, selectedYear, activeType, analyticsBasis],
+    queryFn: () => getCategoryChart({ month: selectedMonth, year: selectedYear, type: activeType, basis: analyticsBasis }),
   });
 
   // Extremely robust extraction
@@ -75,6 +77,32 @@ const AnalyticsPage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        <section className="flex flex-col gap-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-black text-slate-800">วัดผลตามอะไร</p>
+            <p className="text-xs text-slate-500">
+              {analyticsBasis === "budget"
+                ? "รวมตามเดือนที่เลือกให้นับในงบประมาณ เหมาะสำหรับเทียบค่าใช้จ่ายรายเดือน"
+                : "รวมตามวันที่ทำรายการหรือวันที่จ่ายจริง เหมาะสำหรับตรวจเงินเข้าออก"}
+            </p>
+          </div>
+          <div className="grid grid-cols-2 rounded-lg border border-emerald-100 bg-white p-1">
+            {([
+              ["budget", "รอบงบประมาณ"],
+              ["transaction", "วันที่ทำรายการ"],
+            ] as const).map(([basis, label]) => (
+              <button
+                key={basis}
+                type="button"
+                onClick={() => setAnalyticsBasis(basis)}
+                className={`h-9 rounded-md px-3 text-xs font-bold transition-colors ${analyticsBasis === basis ? "bg-emerald-700 text-white" : "text-slate-500 hover:bg-emerald-50"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </section>
 
         {/* Saving Rate Card */}
         <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-[2.5rem] p-8 text-white shadow-xl shadow-indigo-100 group">
@@ -120,7 +148,9 @@ const AnalyticsPage: React.FC = () => {
         {/* Cashflow Summary Card */}
         <section className="bg-surface p-6 rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden relative group">
           <div className="flex justify-between items-center mb-6">
-            <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest">เส้นทางเงิน (CASH FLOW)</h3>
+            <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest">
+              {analyticsBasis === "budget" ? "ภาพรวมรอบงบประมาณ" : "กระแสเงินสด"}
+            </h3>
             <div className="p-2 bg-indigo-50 rounded-xl">
               <TrendingUp size={18} className="text-indigo-600" />
             </div>
@@ -150,7 +180,10 @@ const AnalyticsPage: React.FC = () => {
 
         {/* Monthly Trends - Comparative */}
         <section className="bg-surface p-6 rounded-[2.5rem] border border-gray-100 shadow-sm">
-          <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-8">เปรียบเทียบรายเดือน</h3>
+          <div className="mb-8 flex items-center justify-between gap-3">
+            <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest">เปรียบเทียบรายเดือน</h3>
+            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">ตาม{basisLabel}</span>
+          </div>
           
           <div className="h-48 flex items-end justify-between gap-2 px-1">
             {isTrendsLoading ? (
@@ -192,7 +225,10 @@ const AnalyticsPage: React.FC = () => {
         {/* Category Breakdown */}
         <section className="bg-surface p-6 rounded-[2.5rem] border border-gray-100 shadow-sm">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-            <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest">แบ่งตามหมวดหมู่ (100%)</h3>
+            <div>
+              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest">แบ่งตามหมวดหมู่ (100%)</h3>
+              <p className="mt-1 text-xs font-medium text-gray-400">ตาม{basisLabel}ของเดือนที่เลือก</p>
+            </div>
             
             <div className="flex p-1 bg-gray-100 rounded-2xl w-full sm:w-auto">
                <button 

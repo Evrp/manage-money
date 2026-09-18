@@ -1,12 +1,16 @@
 import api from "./api";
 
+export type AnalyticsBasis = "budget" | "transaction";
+
 export interface DashboardPeriodParams {
   month: number;
   year: number;
+  basis?: AnalyticsBasis;
 }
 
 export interface MonthlyChartParams {
   year: number;
+  basis?: AnalyticsBasis;
 }
 
 export interface CategoryChartParams extends DashboardPeriodParams {

@@ -16,6 +16,7 @@ import CreateCategoryModal from "./CreateCategoryModal";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCreditCards } from "../../hooks/useCreditCards";
 import PaymentSourceSelect from "./PaymentSourceSelect";
+import MonthPickerField from "./MonthPickerField";
 
 interface TransactionFormProps {
   initialData?: any;
@@ -30,23 +31,28 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
   onSubmit,
   title = "บันทึกรายการ",
 }) => {
+  const initialDate = initialData?.date?.split("T")[0] || new Date().toISOString().split("T")[0];
+  const initialDateValue = new Date(`${initialDate}T12:00:00`);
+  const defaultCycle = {
+    month: initialDateValue.getMonth() + 1,
+    year: initialDateValue.getFullYear(),
+  };
   const [formData, setFormData] = useState({
     type: initialData?.type || CategoryType.EXPENSE,
     amount: initialData?.amount || "",
     categoryId: initialData?.categoryId || "",
     note: initialData?.note || "",
-    date: initialData?.date || new Date().toISOString().split("T")[0],
+    date: initialDate,
     slipImageUrl: initialData?.slipImageUrl || "",
     paymentMethod: initialData?.paymentMethod || PaymentMethod.CASH,
     bankAccountId: initialData?.bankAccountId?._id || initialData?.bankAccountId || "",
     creditCardId: initialData?.creditCardId?._id || initialData?.creditCardId || "",
     statementDueDate: initialData?.statementDueDate ? new Date(initialData.statementDueDate).toISOString().slice(0, 10) : "",
+    targetMonth: initialData?.targetMonth || initialData?.month || defaultCycle.month,
+    targetYear: initialData?.targetYear || initialData?.year || defaultCycle.year,
   });
-
-  const [isNextMonthCycle, setIsNextMonthCycle] = useState(
-    initialData?.isNextMonthCycle !== undefined
-      ? initialData.isNextMonthCycle
-      : false,
+  const [cycleManuallySelected, setCycleManuallySelected] = useState(
+    Boolean(initialData?.targetMonth || initialData?.targetYear || initialData?.isNextMonthCycle),
   );
 
   const [isUploading, setIsUploading] = useState(false);
@@ -60,36 +66,6 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
 
   const filteredCategories =
     categories?.filter((c) => c.type === formData.type) || [];
-
-  // Auto-detect end of month date (>= 25th) to suggest next month cycle
-  React.useEffect(() => {
-    if (formData.date && initialData?.isNextMonthCycle === undefined) {
-      const d = new Date(formData.date);
-      if (d.getDate() >= 25) {
-        setIsNextMonthCycle(true);
-      }
-    }
-  }, [formData.date, initialData?.isNextMonthCycle]);
-
-  // Compute Target Cycle Month Name
-  const targetCycleText = React.useMemo(() => {
-    if (!formData.date) return "";
-    const d = new Date(formData.date);
-    let m = d.getMonth();
-    let y = d.getFullYear();
-    if (isNextMonthCycle) {
-      m += 1;
-      if (m > 11) {
-        m = 0;
-        y += 1;
-      }
-    }
-    const cycleDate = new Date(y, m, 1);
-    return cycleDate.toLocaleDateString("th-TH", {
-      month: "long",
-      year: "numeric",
-    });
-  }, [formData.date, isNextMonthCycle]);
 
   const handleFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -131,7 +107,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
     onSubmit({
       ...formData,
       amount: Number(formData.amount),
-      isNextMonthCycle,
+      isNextMonthCycle: false,
       ...(formData.type !== CategoryType.EXPENSE
         ? { paymentMethod: PaymentMethod.CASH, bankAccountId: undefined, creditCardId: undefined }
         : {}),
@@ -420,7 +396,17 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
                               String(date.getMonth() + 1).padStart(2, "0") +
                               "-" +
                               String(date.getDate()).padStart(2, "0");
-                            setFormData({ ...formData, date: dateStr });
+                            const nextCycleDate = new Date(`${dateStr}T12:00:00`);
+                            setFormData({
+                              ...formData,
+                              date: dateStr,
+                              ...(cycleManuallySelected
+                                ? {}
+                                : {
+                                    targetMonth: nextCycleDate.getMonth() + 1,
+                                    targetYear: nextCycleDate.getFullYear(),
+                                  }),
+                            });
                           }}
                           onClose={() => setShowDatePicker(false)}
                         />
@@ -451,31 +437,38 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
               </div>
             </div>
 
-            {/* Monthly Cycle Cutoff Toggle */}
-            <div className="bg-indigo-50/70 p-4 rounded-2xl border border-indigo-100 flex items-center justify-between gap-3">
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs font-black text-indigo-950">
-                    ตัดรอบเป็นเดือนถัดไป
-                  </span>
-                  <span className="bg-indigo-200 text-indigo-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                    รอบบัญชี: {targetCycleText}
-                  </span>
-                </div>
-                <p className="text-[11px] text-indigo-700/80 font-medium">
-                  ใช้นับเป็นรายรับ/รายจ่ายของงบประมาณเดือน {targetCycleText}
-                </p>
+            <div className="rounded-xl border border-indigo-100 bg-indigo-50/70 p-3">
+              <label className="block text-[11px] font-black text-indigo-950">
+                นับในรอบบัญชีเดือน
+              </label>
+              <p className="mt-1 text-[11px] font-medium text-indigo-700/80">
+                ใช้นับเป็นรายรับ/รายจ่ายของงบประมาณใน Analytics และ Budget
+              </p>
+              <div className="mt-2 flex items-center gap-3">
+                <MonthPickerField
+                  value={`${formData.targetYear}-${String(formData.targetMonth).padStart(2, "0")}`}
+                  onChange={(value) => {
+                    if (!value) {
+                      const date = new Date(`${formData.date}T12:00:00`);
+                      setFormData({
+                        ...formData,
+                        targetMonth: date.getMonth() + 1,
+                        targetYear: date.getFullYear(),
+                      });
+                      setCycleManuallySelected(false);
+                      return;
+                    }
+                    const [targetYear, targetMonth] = value.split("-").map(Number);
+                    setFormData({ ...formData, targetMonth, targetYear });
+                    setCycleManuallySelected(true);
+                  }}
+                  ariaLabel="เลือกเดือนรอบบัญชี"
+                  className="min-w-0 flex-1"
+                />
+                <span className="hidden text-xs font-bold text-indigo-700 sm:block">
+                  เลือกเดือนได้เอง
+                </span>
               </div>
-
-              <button
-                type="button"
-                onClick={() => setIsNextMonthCycle(!isNextMonthCycle)}
-                className={`w-12 h-7 shrink-0 flex items-center rounded-full p-1 transition-colors duration-300 ${
-                  isNextMonthCycle ? "bg-indigo-600 justify-end" : "bg-gray-300 justify-start"
-                }`}
-              >
-                <span className="bg-surface w-5 h-5 rounded-full shadow-md" />
-              </button>
             </div>
 
             <button
