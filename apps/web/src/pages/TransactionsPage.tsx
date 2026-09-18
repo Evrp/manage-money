@@ -43,10 +43,14 @@ interface Transaction {
 const TransactionsPage = () => {
   const queryClient = useQueryClient();
   const now = new Date();
+  const toDateValue = (date: Date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  const defaultDateFrom = toDateValue(new Date(now.getFullYear(), now.getMonth(), 1));
+  const defaultDateTo = toDateValue(new Date(now.getFullYear(), now.getMonth() + 1, 0));
   const [activeTab, setActiveTab] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedMonth, setSelectedMonth] = useState<number | null>(now.getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState<number | null>(now.getFullYear());
+  const [transactionDateFrom, setTransactionDateFrom] = useState(defaultDateFrom);
+  const [transactionDateTo, setTransactionDateTo] = useState(defaultDateTo);
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
     null,
@@ -65,8 +69,8 @@ const TransactionsPage = () => {
     queryKey: [
       "transactions",
       activeTab,
-      selectedMonth,
-      selectedYear,
+      transactionDateFrom,
+      transactionDateTo,
       order,
       uploadDateFilter,
       slipsOnlyFilter,
@@ -75,8 +79,8 @@ const TransactionsPage = () => {
     queryFn: () => getTransactions({
       limit: 100,
       ...(activeTab === "all" ? {} : { type: activeTab }),
-      ...(selectedMonth === null ? {} : { month: selectedMonth }),
-      ...(selectedYear === null ? {} : { year: selectedYear }),
+      ...(transactionDateFrom ? { dateFrom: transactionDateFrom } : {}),
+      ...(transactionDateTo ? { dateTo: transactionDateTo } : {}),
       ...(uploadDateFilter ? { uploadDate: uploadDateFilter } : {}),
       ...(slipsOnlyFilter ? { slipsOnly: true } : {}),
       ...(sortByUpload ? { sortByUpload: true } : {}),
@@ -246,8 +250,8 @@ const TransactionsPage = () => {
                         setUploadDateFilter("");
                         setSlipsOnlyFilter(false);
                         setSortByUpload(false);
-                        setSelectedMonth(now.getMonth() + 1);
-                        setSelectedYear(now.getFullYear());
+                        setTransactionDateFrom(defaultDateFrom);
+                        setTransactionDateTo(defaultDateTo);
                       }}
                       className="mr-2 text-xs font-bold text-indigo-600 hover:text-indigo-800"
                     >
@@ -263,21 +267,17 @@ const TransactionsPage = () => {
                   </div>
 
                   <div className="space-y-5">
-                    <div className="grid grid-cols-2 gap-3">
-                      <label className="space-y-1.5">
-                        <span className="text-xs font-bold text-gray-600">เดือนรายการ</span>
-                        <select value={selectedMonth ?? ""} onChange={(event) => setSelectedMonth(event.target.value ? Number(event.target.value) : null)} className="h-11 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm font-bold text-gray-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
-                          <option value="">ทุกเดือน</option>
-                          {["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"].map((month, index) => <option key={month} value={index + 1}>{month}</option>)}
-                        </select>
-                      </label>
-                      <label className="space-y-1.5">
-                        <span className="text-xs font-bold text-gray-600">ปีรายการ</span>
-                        <select value={selectedYear ?? ""} onChange={(event) => setSelectedYear(event.target.value ? Number(event.target.value) : null)} className="h-11 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm font-bold text-gray-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
-                          <option value="">ทุกปี</option>
-                          {Array.from({ length: 30 }, (_, index) => now.getFullYear() - 15 + index).map((year) => <option key={year} value={year}>{year + 543} ({year})</option>)}
-                        </select>
-                      </label>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-gray-600">ช่วงวันที่รายการ</span>
+                        {(transactionDateFrom || transactionDateTo) && (
+                          <button type="button" onClick={() => { setTransactionDateFrom(""); setTransactionDateTo(""); }} className="text-xs font-bold text-indigo-600 hover:text-indigo-800">ทุกช่วงเวลา</button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <DatePickerField value={transactionDateFrom} onChange={setTransactionDateFrom} max={transactionDateTo || undefined} ariaLabel="เลือกวันเริ่มต้นของรายการ" placeholder="ตั้งแต่วันที่" />
+                        <DatePickerField value={transactionDateTo} onChange={setTransactionDateTo} min={transactionDateFrom || undefined} ariaLabel="เลือกวันสิ้นสุดของรายการ" placeholder="ถึงวันที่" />
+                      </div>
                     </div>
 
                     {/* Category Filter Grid */}

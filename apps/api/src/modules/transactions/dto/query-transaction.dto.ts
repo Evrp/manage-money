@@ -6,6 +6,7 @@ import {
   Max,
   Min,
   IsBoolean,
+  IsDateString,
 } from "class-validator";
 import { Type } from "class-transformer";
 import { TransactionType } from "@moneyflow/shared";
@@ -22,6 +23,14 @@ export class QueryTransactionDto {
   @Type(() => Number)
   @IsInt()
   year?: number;
+
+  @IsOptional()
+  @IsDateString()
+  dateFrom?: string;
+
+  @IsOptional()
+  @IsDateString()
+  dateTo?: string;
 
   @IsOptional()
   @IsString()

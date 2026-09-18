@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { Transaction } from "../../schemas/transaction.schema";
@@ -25,6 +29,8 @@ export class TransactionsService {
     const {
       month,
       year,
+      dateFrom,
+      dateTo,
       categoryId,
       type,
       uploadDate,
@@ -39,7 +45,18 @@ export class TransactionsService {
       userId: { $in: [userId, userObjectId] },
     };
 
-    if (!uploadDate) {
+    if (dateFrom || dateTo) {
+      const transactionDateFilter: Record<string, Date> = {};
+      if (dateFrom) {
+        const start = new Date(`${dateFrom}T00:00:00`);
+        transactionDateFilter.$gte = start;
+      }
+      if (dateTo) {
+        const end = new Date(`${dateTo}T23:59:59.999`);
+        transactionDateFilter.$lte = end;
+      }
+      filter.date = transactionDateFilter;
+    } else if (!uploadDate) {
       if (month) filter.month = month;
       if (year) filter.year = year;
     }
@@ -109,10 +126,20 @@ export class TransactionsService {
 
   async create(userId: string, createTransactionDto: CreateTransactionDto) {
     const date = new Date(createTransactionDto.date);
-    const paymentFields = await this.resolvePaymentFields(userId, createTransactionDto, date);
-    const { month, year } = paymentFields.paymentMethod === PaymentMethod.CREDIT_CARD
-      ? this.calculateCycleMonthYear(date)
-      : this.calculateCycleMonthYear(date, createTransactionDto.isNextMonthCycle, createTransactionDto.targetMonth, createTransactionDto.targetYear);
+    const paymentFields = await this.resolvePaymentFields(
+      userId,
+      createTransactionDto,
+      date,
+    );
+    const { month, year } =
+      paymentFields.paymentMethod === PaymentMethod.CREDIT_CARD
+        ? this.calculateCycleMonthYear(date)
+        : this.calculateCycleMonthYear(
+            date,
+            createTransactionDto.isNextMonthCycle,
+            createTransactionDto.targetMonth,
+            createTransactionDto.targetYear,
+          );
 
     // Extract path from imageUrl if it is a full URL
     let slipImageUrl = createTransactionDto.slipImageUrl;
@@ -237,10 +264,16 @@ export class TransactionsService {
         ? updateData.targetYear
         : oldTransaction.targetYear;
 
-    const paymentFields = await this.resolvePaymentFields(userId, updateData, targetDate, oldTransaction);
-    const { month, year } = paymentFields.paymentMethod === PaymentMethod.CREDIT_CARD
-      ? this.calculateCycleMonthYear(targetDate)
-      : this.calculateCycleMonthYear(targetDate, isNext, tMonth, tYear);
+    const paymentFields = await this.resolvePaymentFields(
+      userId,
+      updateData,
+      targetDate,
+      oldTransaction,
+    );
+    const { month, year } =
+      paymentFields.paymentMethod === PaymentMethod.CREDIT_CARD
+        ? this.calculateCycleMonthYear(targetDate)
+        : this.calculateCycleMonthYear(targetDate, isNext, tMonth, tYear);
     const payloadToSet: any = { ...updateData, month, year, ...paymentFields };
     delete payloadToSet.statementDueDate;
 
@@ -277,7 +310,11 @@ export class TransactionsService {
       delete payloadToSet.creditCardId;
       delete payloadToSet.statementMonth;
       delete payloadToSet.statementYear;
-      updateOperation.$unset = { creditCardId: 1, statementMonth: 1, statementYear: 1 };
+      updateOperation.$unset = {
+        creditCardId: 1,
+        statementMonth: 1,
+        statementYear: 1,
+      };
     }
     if (paymentFields.paymentMethod !== PaymentMethod.BANK_TRANSFER) {
       delete payloadToSet.bankAccountId;
@@ -388,24 +425,54 @@ export class TransactionsService {
 
   private async resolvePaymentFields(
     userId: string,
-    data: { paymentMethod?: PaymentMethod; bankAccountId?: string; creditCardId?: string },
+    data: {
+      paymentMethod?: PaymentMethod;
+      bankAccountId?: string;
+      creditCardId?: string;
+    },
     date: Date,
     existing?: Transaction,
   ) {
-    const paymentMethod = data.paymentMethod ?? existing?.paymentMethod ?? PaymentMethod.CASH;
+    const paymentMethod =
+      data.paymentMethod ?? existing?.paymentMethod ?? PaymentMethod.CASH;
     const existingAccountId = existing?.bankAccountId?.toString();
     const bankAccountId = data.bankAccountId ?? existingAccountId;
     const existingCardId = existing?.creditCardId?.toString();
     const creditCardId = data.creditCardId ?? existingCardId;
     if (paymentMethod === PaymentMethod.BANK_TRANSFER) {
-      if (!bankAccountId) throw new BadRequestException("bankAccountId is required for bank-transfer transactions");
+      if (!bankAccountId)
+        throw new BadRequestException(
+          "bankAccountId is required for bank-transfer transactions",
+        );
       await this.bankAccountsService.getOwnedAccount(userId, bankAccountId);
-      return { paymentMethod, bankAccountId: new Types.ObjectId(bankAccountId), creditCardId: undefined };
+      return {
+        paymentMethod,
+        bankAccountId: new Types.ObjectId(bankAccountId),
+        creditCardId: undefined,
+      };
     }
-    if (paymentMethod !== PaymentMethod.CREDIT_CARD) return { paymentMethod, bankAccountId: undefined, creditCardId: undefined };
-    if (!creditCardId) throw new BadRequestException("creditCardId is required for credit-card transactions");
-    const card = await this.creditCardsService.getOwnedCard(userId, creditCardId);
-    const { statementMonth, statementYear } = this.creditCardsService.resolveStatementPeriod(card, date);
-    return { paymentMethod, bankAccountId: undefined, creditCardId: new Types.ObjectId(creditCardId), statementMonth, statementYear };
+    if (paymentMethod !== PaymentMethod.CREDIT_CARD)
+      return {
+        paymentMethod,
+        bankAccountId: undefined,
+        creditCardId: undefined,
+      };
+    if (!creditCardId)
+      throw new BadRequestException(
+        "creditCardId is required for credit-card transactions",
+      );
+    const card = await this.creditCardsService.getOwnedCard(
+      userId,
+      creditCardId,
+    );
+    const { statementMonth, statementYear } =
+      this.creditCardsService.resolveStatementPeriod(card, date);
+    return {
+      paymentMethod,
+      bankAccountId: undefined,
+      creditCardId: new Types.ObjectId(creditCardId),
+      statementMonth,
+      statementYear,
+    };
   }
 }

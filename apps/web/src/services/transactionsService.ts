@@ -5,6 +5,8 @@ export interface TransactionsQueryParams {
   type?: string;
   month?: number;
   year?: number;
+  dateFrom?: string;
+  dateTo?: string;
   uploadDate?: string;
   slipsOnly?: boolean;
   sortByUpload?: boolean;
