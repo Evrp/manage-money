@@ -60,7 +60,8 @@
 .desktop-breadcrumb strong { color: rgb(var(--ink)); font-weight: 500; }
 .topbar-account { display: flex; align-items: center; gap: 12px; min-height: 44px; }
 .topbar-name { display: none; }
-.account-avatar { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: rgb(var(--brand-soft)); color: rgb(var(--brand)); flex-shrink: 0; }
+.account-avatar { display: grid; place-items: center; width: 38px; height: 38px; overflow: hidden; border-radius: 50%; background: rgb(var(--brand-soft)); color: rgb(var(--brand)); flex-shrink: 0; }
+.account-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .app-main { max-width: 1320px; margin: auto; padding: 28px 20px 112px; outline: none; }
 .app-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding-top: 32px; margin-top: 36px; border-top: 1px solid rgb(var(--line)); font-size: 12px; color: rgb(var(--muted)); }
 .app-footer > span:first-child { font-weight: 600; }

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import {
   ArrowUpRight,
@@ -26,6 +26,29 @@ const navigation = [
   },
   { to: "/profile", icon: User, label: "โปรไฟล์", caption: "profile" },
 ];
+
+const LineProfileAvatar: React.FC<{ pictureUrl?: string; displayName?: string }> = ({
+  pictureUrl,
+  displayName,
+}) => {
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => setImageFailed(false), [pictureUrl]);
+
+  return (
+    <span className="account-avatar">
+      {pictureUrl && !imageFailed ? (
+        <img
+          src={pictureUrl}
+          alt={`รูปโปรไฟล์ ${displayName || "ผู้ใช้"}`}
+          onError={() => setImageFailed(true)}
+        />
+      ) : (
+        <User size={19} aria-hidden="true" />
+      )}
+    </span>
+  );
+};
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { pathname } = useLocation();
@@ -79,9 +102,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             </Link>
           </div>
           <Link to="/profile" className="sidebar-account">
-            <span className="account-avatar">
-              <User size={19} />
-            </span>
+            <LineProfileAvatar pictureUrl={user?.pictureUrl} displayName={user?.displayName} />
             <span>
               <strong>{user?.displayName || "บัญชีของฉัน"}</strong>
               <small>จัดการโปรไฟล์และธีม</small>
@@ -109,9 +130,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             <span className="topbar-name">
               {user?.displayName || "บัญชีของฉัน"}
             </span>
-            <span className="account-avatar">
-              <User size={18} />
-            </span>
+            <LineProfileAvatar pictureUrl={user?.pictureUrl} displayName={user?.displayName} />
           </Link>
         </header>
         <main
