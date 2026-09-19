@@ -28,6 +28,9 @@ export class SlipUpload extends Document implements ISlipUpload {
 
   @Prop()
   processedAt?: Date;
+
+  @Prop({ default: false })
+  readyForSave: boolean;
 }
 
 export const SlipUploadSchema = SchemaFactory.createForClass(SlipUpload);

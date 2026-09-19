@@ -9,6 +9,7 @@ import {
   UploadedFiles,
   BadRequestException,
   Delete,
+  Patch,
   Get,
   Param,
   Query,
@@ -18,6 +19,7 @@ import { SlipsService } from "./slips.service";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { CreateTransactionDto } from "../transactions/dto/create-transaction.dto";
 import { PendingSlipsQueryDto } from "./dto/pending-slips-query.dto";
+import { SetSlipReadyDto } from "./dto/set-slip-ready.dto";
 
 const multerOptions = {
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
@@ -82,6 +84,19 @@ export class SlipsController {
   @Delete(":id")
   remove(@Request() req, @Param("id") id: string) {
     return this.slipsService.removePending(req.user.userId, id);
+  }
+
+  @Patch(":id/ready")
+  setReadyForSave(
+    @Request() req,
+    @Param("id") id: string,
+    @Body() body: SetSlipReadyDto,
+  ) {
+    return this.slipsService.setReadyForSave(
+      req.user.userId,
+      id,
+      body.readyForSave,
+    );
   }
 
   @Post("confirm")

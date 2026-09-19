@@ -95,9 +95,20 @@ export class SlipsService {
           extractedData: upload.extractedData || null,
           errorMessage: upload.errorMessage || null,
           processedAt: upload.processedAt || null,
+          readyForSave: Boolean(upload.readyForSave),
         };
       }),
     );
+  }
+
+  async setReadyForSave(userId: string, slipId: string, readyForSave: boolean) {
+    const upload = await this.slipUploadModel.findOneAndUpdate(
+      { _id: slipId, userId, transactionId: { $exists: false } },
+      { $set: { readyForSave } },
+      { new: true },
+    );
+    if (!upload) throw new BadRequestException("Slip not found");
+    return { id: upload._id.toString(), readyForSave: upload.readyForSave };
   }
 
   async findPendingView(userId: string, query: PendingSlipsQueryDto) {

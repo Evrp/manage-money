@@ -18,7 +18,7 @@ import {
   CalendarDays,
   ArrowDownUp,
 } from "lucide-react";
-import { confirmSlips, deletePendingSlip, getPendingSlipView, uploadSlip } from "../../services/slipsService";
+import { confirmSlips, deletePendingSlip, getPendingSlipView, setPendingSlipReady, uploadSlip } from "../../services/slipsService";
 import { createCategory } from "../../services/categoriesService";
 import { useCategories } from "../../hooks/useCategories";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -37,6 +37,7 @@ export interface SlipItemState {
   status: "uploading" | "success" | "error";
   errorMessage?: string;
   requiresManualEntry?: boolean;
+  readyForSave?: boolean;
   slipId?: string;
   formData: {
     type: "income" | "expense";
@@ -71,6 +72,7 @@ export interface PendingSlipUpload {
   status: "success" | "failed";
   extractedData: Record<string, any> | null;
   errorMessage: string | null;
+  readyForSave?: boolean;
 }
 
 const getDefaultCycle = (dateString?: string) => {
@@ -120,6 +122,8 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
   const [dateSort, setDateSort] = useState<"newest" | "oldest">("newest");
   const [readinessFilter, setReadinessFilter] = useState<"all" | "ready" | "needs-review">("all");
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
+  const [readyUpdatingItemId, setReadyUpdatingItemId] = useState<string | null>(null);
+  const [readinessErrors, setReadinessErrors] = useState<Record<string, string[]>>({});
   
   // State for Full-Screen Image Lightbox
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
@@ -214,6 +218,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
         status: "success",
         slipId: upload.id,
         requiresManualEntry: upload.status === "failed",
+        readyForSave: Boolean(upload.readyForSave),
         errorMessage: upload.errorMessage || undefined,
         formData: {
           ...extractedForm,
@@ -278,6 +283,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
             ...i,
             status: "success",
             slipId: data.id,
+            readyForSave: Boolean(data.readyForSave),
             requiresManualEntry: Boolean(data.requiresManualEntry),
             formData: {
               ...i.formData,
@@ -420,6 +426,11 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
     field: keyof SlipItemState["formData"],
     value: any,
   ) => {
+    const existingItem = items.find((item) => item.id === id);
+    if (existingItem?.readyForSave && existingItem.slipId) {
+      void setPendingSlipReady({ id: existingItem.slipId, readyForSave: false });
+    }
+    setReadinessErrors((current) => ({ ...current, [id]: [] }));
     setItems((prev) =>
       prev.map((item) => {
         if (item.id !== id) return item;
@@ -429,19 +440,26 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
             ...item.formData,
             [field]: value,
           },
+          readyForSave: false,
         };
       }),
     );
   };
 
-  const validSuccessItems = items.filter(
-    (item) =>
+  const getReadinessErrors = (item: SlipItemState) => [
+    !item.formData.amount && "amount",
+    !item.formData.categoryId && "category",
+    item.formData.paymentMethod === PaymentMethod.BANK_TRANSFER && !item.formData.bankAccountId && "payment",
+    item.formData.paymentMethod === PaymentMethod.CREDIT_CARD && !item.formData.creditCardId && "payment",
+  ].filter(Boolean) as string[];
+
+  const isReadyCandidate = (item: SlipItemState) =>
       item.status === "success" &&
       item.slipId &&
-      item.formData.amount &&
-      item.formData.categoryId &&
-      (item.formData.documentType === undefined || item.formData.documentType === "bank_transfer" || !!item.formData.creditCardId) &&
-      (item.formData.paymentMethod !== PaymentMethod.BANK_TRANSFER || !!item.formData.bankAccountId),
+      getReadinessErrors(item).length === 0;
+
+  const validSuccessItems = items.filter(
+    (item) => item.readyForSave && isReadyCandidate(item),
   );
 
   const uploadingCount = items.filter((i) => i.status === "uploading").length;
@@ -542,6 +560,26 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
       );
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleReadyForSave = async (item: SlipItemState, readyForSave: boolean) => {
+    if (!item.slipId) return;
+    const errors = getReadinessErrors(item);
+    if (readyForSave && (!isReadyCandidate(item) || errors.length > 0)) {
+      setReadinessErrors((current) => ({ ...current, [item.id]: errors }));
+      setExpandedItemId(item.id);
+      window.setTimeout(() => document.getElementById(`slip-field-${item.id}-${errors[0]}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 0);
+      return;
+    }
+    setReadyUpdatingItemId(item.id);
+    try {
+      await setPendingSlipReady({ id: item.slipId, readyForSave });
+      setItems((current) => current.map((currentItem) => currentItem.id === item.id ? { ...currentItem, readyForSave } : currentItem));
+    } catch (error: any) {
+      alert("เปลี่ยนสถานะไม่สำเร็จ: " + (error.response?.data?.message || error.message));
+    } finally {
+      setReadyUpdatingItemId(null);
     }
   };
 
@@ -940,6 +978,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                         ? "กรอกข้อมูลเอง"
                         : "อ่านสลิปแล้ว";
                 const isReadyToSave = readyItemIds.has(item.id);
+                const canMarkReady = isReadyCandidate(item);
 
                 return (
                   <div
@@ -1161,6 +1200,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                         </div>
 
                         {item.formData.type === "expense" && (
+                          <div id={`slip-field-${item.id}-payment`}>
                           <PaymentSourceSelect
                             paymentMethod={item.formData.paymentMethod}
                             bankAccountId={item.formData.bankAccountId}
@@ -1171,6 +1211,8 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                               handleUpdateItemForm(item.id, "creditCardId", creditCardId || "");
                             }}
                           />
+                          {readinessErrors[item.id]?.includes("payment") && <p className="mt-1 text-xs font-bold text-rose-600">กรุณาเลือกบัญชีหรือบัตรที่ใช้ชำระ</p>}
+                          </div>
                         )}
 
                         {/* Amount & Type Input Row */}
@@ -1214,7 +1256,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                           </div>
 
                           {/* Amount Input */}
-                          <div className="relative sm:col-span-2">
+                          <div id={`slip-field-${item.id}-amount`} className="relative sm:col-span-2">
                             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-600 text-base font-black">
                               ฿
                             </span>
@@ -1229,12 +1271,13 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                                   e.target.value,
                                 )
                               }
-                              className="w-full bg-gray-50 border border-gray-200 rounded-2xl py-2 pl-9 pr-4 text-lg font-black text-indigo-600 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                              className={`w-full bg-gray-50 border rounded-2xl py-2 pl-9 pr-4 text-lg font-black text-indigo-600 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 ${readinessErrors[item.id]?.includes("amount") ? "border-rose-500 ring-2 ring-rose-100" : "border-gray-200"}`}
                             />
+                            {readinessErrors[item.id]?.includes("amount") && <p className="mt-1 text-xs font-bold text-rose-600">กรุณาระบุจำนวนเงิน</p>}
                           </div>
                         </div>
 
-                        <div>
+                        <div id={`slip-field-${item.id}-category`}>
                           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5">
                             หมวดหมู่
                           </label>
@@ -1252,7 +1295,9 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                                   setIsCategoryPickerOpen(true);
                                 }}
                                 className={`flex min-h-12 w-full items-center justify-between rounded-xl border px-3 text-left transition-colors ${
-                                  selectedCategory
+                                  readinessErrors[item.id]?.includes("category")
+                                    ? "border-rose-500 bg-rose-50 text-rose-700"
+                                    : selectedCategory
                                     ? "border-indigo-200 bg-indigo-50 text-indigo-950"
                                     : "border-dashed border-slate-300 bg-white text-slate-500 hover:border-indigo-400 hover:bg-indigo-50"
                                 }`}
@@ -1269,6 +1314,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                               </button>
                             );
                           })()}
+                          {readinessErrors[item.id]?.includes("category") && <p className="mt-1 text-xs font-bold text-rose-600">กรุณาเลือกหมวดหมู่</p>}
                         </div>
 
                         {/* Date & Note Inputs */}
@@ -1345,6 +1391,21 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                             </span>
                           </div>
                         </div>
+                        <button
+                          type="button"
+                          disabled={readyUpdatingItemId === item.id}
+                          onClick={() => handleReadyForSave(item, !item.readyForSave)}
+                          className={`flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-black transition-colors ${
+                            item.readyForSave
+                              ? "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                              : canMarkReady
+                                ? "bg-emerald-700 text-white hover:bg-emerald-800"
+                                : "bg-rose-50 text-rose-700 hover:bg-rose-100"
+                          }`}
+                        >
+                          {readyUpdatingItemId === item.id ? <Loader2 size={17} className="animate-spin" /> : <CheckCircle2 size={17} />}
+                          {item.readyForSave ? "นำออกจากพร้อมบันทึก" : "ยืนยันว่าพร้อมบันทึก"}
+                        </button>
                       </div>
                     </div>
                     )}
