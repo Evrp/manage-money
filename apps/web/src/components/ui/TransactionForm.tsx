@@ -259,12 +259,12 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
               </button>
             </div>
 
-            {formData.type === CategoryType.EXPENSE && (
-              <div className="space-y-3">
+            <div className="space-y-3">
                 <PaymentSourceSelect
                   paymentMethod={formData.paymentMethod}
                   bankAccountId={formData.bankAccountId}
                   creditCardId={formData.creditCardId}
+                  label={formData.type === CategoryType.INCOME ? "รับจาก" : "ชำระด้วย"}
                   onChange={({ paymentMethod, bankAccountId, creditCardId }) =>
                     setFormData({ ...formData, paymentMethod, bankAccountId: bankAccountId || "", creditCardId: creditCardId || "" })
                   }
@@ -276,8 +276,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
                     {creditCards.map((card) => <option key={card._id} value={card._id}>{card.name} •••• {card.last4}</option>)}
                   </select><label className="block text-xs font-bold text-gray-400 px-1">วันครบกำหนดตามใบแจ้งยอด (ถ้ามี)</label><input type="date" value={formData.statementDueDate} onChange={(e) => setFormData({ ...formData, statementDueDate: e.target.value })} className="w-full bg-gray-50 rounded-2xl p-4 font-bold text-gray-700" /></div>
                 )}
-              </div>
-            )}
+            </div>
 
             {/* Amount Input */}
             <div className="relative group">

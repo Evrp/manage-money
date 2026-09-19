@@ -1207,12 +1207,12 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                           </div>
                         </div>
 
-                        {item.formData.type === "expense" && (
-                          <div id={`slip-field-${item.id}-payment`} className="order-3">
+                        <div id={`slip-field-${item.id}-payment`} className="order-3">
                           <PaymentSourceSelect
                             paymentMethod={item.formData.paymentMethod}
                             bankAccountId={item.formData.bankAccountId}
                             creditCardId={item.formData.creditCardId}
+                            label={item.formData.type === "income" ? "รับจาก" : "ชำระด้วย"}
                             onChange={({ paymentMethod, bankAccountId, creditCardId }) => {
                               handleUpdateItemForm(item.id, "paymentMethod", paymentMethod);
                               handleUpdateItemForm(item.id, "bankAccountId", bankAccountId || "");
@@ -1221,8 +1221,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                             onAddBankAccount={() => setActiveItemForBankAccount(item.id)}
                           />
                           {readinessErrors[item.id]?.includes("payment") && <p className="mt-1 text-xs font-bold text-rose-600">กรุณาเลือกบัญชีหรือบัตรที่ใช้ชำระ</p>}
-                          </div>
-                        )}
+                        </div>
 
                         {/* Amount & Type Input Row */}
                         <div className="order-4 grid grid-cols-1 gap-3 sm:grid-cols-3">

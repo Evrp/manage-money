@@ -8,6 +8,7 @@ type Props = {
   paymentMethod?: PaymentMethod;
   bankAccountId?: string;
   creditCardId?: string;
+  label?: string;
   onChange: (value: Pick<Props, "paymentMethod" | "bankAccountId" | "creditCardId">) => void;
   onAddBankAccount?: () => void;
 };
@@ -16,6 +17,7 @@ export default function PaymentSourceSelect({
   paymentMethod = PaymentMethod.CASH,
   bankAccountId = "",
   creditCardId = "",
+  label = "ชำระด้วย",
   onChange,
   onAddBankAccount,
 }: Props) {
@@ -31,7 +33,7 @@ export default function PaymentSourceSelect({
   return (
     <div className="min-w-0 space-y-2">
       <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400">
-        ชำระด้วย
+        {label}
       </label>
       <select
           value={value}
