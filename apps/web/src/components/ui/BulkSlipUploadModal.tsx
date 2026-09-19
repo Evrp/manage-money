@@ -14,7 +14,6 @@ import {
   ShoppingBag,
   ChevronRight,
   ChevronUp,
-  Search,
   CalendarDays,
   ArrowDownUp,
 } from "lucide-react";
@@ -116,7 +115,6 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
   const [activeItemForCategory, setActiveItemForCategory] = useState<string | null>(null);
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
   const [isCategoryPickerOpen, setIsCategoryPickerOpen] = useState(false);
-  const [categorySearch, setCategorySearch] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [dateSort, setDateSort] = useState<"newest" | "oldest">("newest");
@@ -668,9 +666,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
       {isOpen && isCategoryPickerOpen && activeItemForCategory && (() => {
         const activeItem = items.find((item) => item.id === activeItemForCategory);
         const availableCategories = categories.filter(
-          (category) =>
-            category.type === activeItem?.formData.type &&
-            category.name.toLowerCase().includes(categorySearch.trim().toLowerCase()),
+          (category) => category.type === activeItem?.formData.type,
         );
 
         return (
@@ -700,18 +696,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
             </header>
 
             <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col overflow-hidden px-4 py-5 sm:px-8">
-              <label className="relative block">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={19} />
-                <input
-                  autoFocus
-                  value={categorySearch}
-                  onChange={(event) => setCategorySearch(event.target.value)}
-                  placeholder="ค้นหาหมวดหมู่"
-                  className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-4 text-sm font-medium text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                />
-              </label>
-
-              <div className="mt-5 flex-1 overflow-y-auto pb-6">
+              <div className="flex-1 overflow-y-auto pb-6">
                 {availableCategories.length > 0 ? (
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                     {availableCategories.map((category) => {
@@ -722,7 +707,6 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                           type="button"
                           onClick={() => {
                             handleUpdateItemForm(activeItemForCategory, "categoryId", category._id);
-                            setCategorySearch("");
                             setIsCategoryPickerOpen(false);
                           }}
                           className={`flex min-h-24 flex-col items-start justify-between rounded-xl border p-4 text-left transition-colors ${
@@ -1291,7 +1275,6 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                                 type="button"
                                 onClick={() => {
                                   setActiveItemForCategory(item.id);
-                                  setCategorySearch("");
                                   setIsCategoryPickerOpen(true);
                                 }}
                                 className={`flex min-h-12 w-full items-center justify-between rounded-xl border px-3 text-left transition-colors ${
