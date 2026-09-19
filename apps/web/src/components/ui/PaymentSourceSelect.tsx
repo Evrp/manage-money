@@ -9,6 +9,7 @@ type Props = {
   bankAccountId?: string;
   creditCardId?: string;
   onChange: (value: Pick<Props, "paymentMethod" | "bankAccountId" | "creditCardId">) => void;
+  onAddBankAccount?: () => void;
 };
 
 export default function PaymentSourceSelect({
@@ -16,6 +17,7 @@ export default function PaymentSourceSelect({
   bankAccountId = "",
   creditCardId = "",
   onChange,
+  onAddBankAccount,
 }: Props) {
   const { data: bankAccounts = [] } = useBankAccounts();
   const { data: creditCards = [] } = useCreditCards();
@@ -27,7 +29,7 @@ export default function PaymentSourceSelect({
         : "cash";
 
   return (
-    <div className="space-y-2">
+    <div className="min-w-0 space-y-2">
       <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400">
         ชำระด้วย
       </label>
@@ -46,7 +48,7 @@ export default function PaymentSourceSelect({
               creditCardId: kind === "card" ? id : "",
             });
           }}
-          className="min-h-12 min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+          className="block min-h-12 w-full min-w-0 max-w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
         >
           <option value="cash">เงินสด</option>
           {bankAccounts.length > 0 && (
@@ -75,7 +77,19 @@ export default function PaymentSourceSelect({
         <p className="text-xs font-bold text-rose-600">กรุณาเลือกบัตรเครดิตที่ใช้ชำระ</p>
       )}
       {bankAccounts.length === 0 && (
-        <p className="flex items-center gap-1 text-xs text-slate-500"><Landmark size={13} /> เพิ่มบัญชีเพื่อบันทึกว่าจ่ายจากบัญชีไหน</p>
+        <div className="flex items-center gap-1.5 text-xs text-slate-500">
+          <Landmark size={13} />
+          <span>ยังไม่มีบัญชีธนาคาร</span>
+          {onAddBankAccount && (
+            <button
+              type="button"
+              onClick={onAddBankAccount}
+              className="font-bold text-indigo-700 underline underline-offset-2 hover:text-indigo-900"
+            >
+              เพิ่มบัญชีธนาคาร
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

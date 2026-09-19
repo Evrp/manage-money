@@ -14,6 +14,7 @@ import {
   ShoppingBag,
   ChevronRight,
   ChevronUp,
+  ChevronDown,
   CalendarDays,
   ArrowDownUp,
 } from "lucide-react";
@@ -22,6 +23,7 @@ import { createCategory } from "../../services/categoriesService";
 import { useCategories } from "../../hooks/useCategories";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import CreateCategoryModal from "./CreateCategoryModal";
+import CreateBankAccountModal from "./CreateBankAccountModal";
 import { useCreditCards } from "../../hooks/useCreditCards";
 import { PaymentMethod } from "@moneyflow/shared";
 import { useAuthStore } from "../../store/auth.store";
@@ -113,18 +115,24 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showCreateCategory, setShowCreateCategory] = useState(false);
   const [activeItemForCategory, setActiveItemForCategory] = useState<string | null>(null);
+  const [activeItemForBankAccount, setActiveItemForBankAccount] = useState<string | null>(null);
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
   const [isCategoryPickerOpen, setIsCategoryPickerOpen] = useState(false);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [dateSort, setDateSort] = useState<"newest" | "oldest">("newest");
   const [readinessFilter, setReadinessFilter] = useState<"all" | "ready" | "needs-review">("all");
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   const [readyUpdatingItemId, setReadyUpdatingItemId] = useState<string | null>(null);
   const [readinessErrors, setReadinessErrors] = useState<Record<string, string[]>>({});
   
   // State for Full-Screen Image Lightbox
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (window.matchMedia("(min-width: 640px)").matches) setIsFilterPanelOpen(true);
+  }, []);
 
   // Initialize items and process OCR
   useEffect(() => {
@@ -635,6 +643,18 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
       )}
 
       {/* Create Category Modal */}
+      {isOpen && activeItemForBankAccount && (
+        <CreateBankAccountModal
+          onClose={() => setActiveItemForBankAccount(null)}
+          onCreated={(bankAccountId) => {
+            handleUpdateItemForm(activeItemForBankAccount, "paymentMethod", PaymentMethod.BANK_TRANSFER);
+            handleUpdateItemForm(activeItemForBankAccount, "bankAccountId", bankAccountId);
+            handleUpdateItemForm(activeItemForBankAccount, "creditCardId", "");
+            setActiveItemForBankAccount(null);
+          }}
+        />
+      )}
+
       {isOpen && showCreateCategory && (
         <CreateCategoryModal
           onClose={() => setShowCreateCategory(false)}
@@ -846,12 +866,15 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
             ) : (
               <>
                 <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 text-sm font-black text-slate-800">
+                  <button type="button" onClick={() => setIsFilterPanelOpen((open) => !open)} className="flex w-full items-center justify-between gap-3 text-left">
+                    <span className="flex items-center gap-2 text-sm font-black text-slate-800">
                       <CalendarDays size={17} className="text-indigo-600" />
                       ค้นหารายการตามวันที่
                       <span className="text-xs font-bold text-slate-400">{filteredVisibleItems.length}/{visibleItems.length}</span>
-                    </div>
+                    </span>
+                    <span className="flex items-center gap-1 text-xs font-bold text-slate-500">ตัวกรอง <ChevronDown size={17} className={`transition-transform ${isFilterPanelOpen ? "rotate-180" : ""}`} /></span>
+                  </button>
+                  {isFilterPanelOpen && <div className="mt-3">
                     {(fromDate || toDate) && (
                       <button
                         type="button"
@@ -859,13 +882,12 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                           setFromDate("");
                           setToDate("");
                         }}
-                        className="text-xs font-bold text-indigo-700 hover:text-indigo-900"
+                        className="mb-2 text-xs font-bold text-indigo-700 hover:text-indigo-900"
                       >
                         ล้างวันที่
                       </button>
                     )}
-                  </div>
-                  <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_180px]">
+                    <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_180px]">
                     <DatePickerField value={fromDate} onChange={setFromDate} max={toDate || undefined} placeholder="ตั้งแต่วันที่" ariaLabel="ตั้งแต่วันที่" />
                     <DatePickerField value={toDate} onChange={setToDate} min={fromDate || undefined} placeholder="ถึงวันที่" ariaLabel="ถึงวันที่" />
                     <label className="relative block">
@@ -931,6 +953,8 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                       )}
                     </div>
                   )}
+                    </div>
+                  }
                 </section>
                 {isPendingViewLoading ? (
                   <div className="grid min-h-40 place-items-center rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm font-medium text-slate-500">
@@ -1194,6 +1218,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                               handleUpdateItemForm(item.id, "bankAccountId", bankAccountId || "");
                               handleUpdateItemForm(item.id, "creditCardId", creditCardId || "");
                             }}
+                            onAddBankAccount={() => setActiveItemForBankAccount(item.id)}
                           />
                           {readinessErrors[item.id]?.includes("payment") && <p className="mt-1 text-xs font-bold text-rose-600">กรุณาเลือกบัญชีหรือบัตรที่ใช้ชำระ</p>}
                           </div>
