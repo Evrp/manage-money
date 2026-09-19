@@ -6,6 +6,8 @@ export const createRecurringExpenseReminderFlex = (
     name: string;
     amount: number;
     dueDay: number;
+    installmentCurrent?: number;
+    installmentTotal?: number;
   },
   dateLabel: string,
   reminderTime: string,
@@ -67,6 +69,32 @@ export const createRecurringExpenseReminderFlex = (
           margin: "lg",
           spacing: "sm",
           contents: [
+            ...(expense.installmentCurrent && expense.installmentTotal
+              ? [
+                  {
+                    type: "box",
+                    layout: "baseline",
+                    contents: [
+                      {
+                        type: "text",
+                        text: "งวด",
+                        color: "#667080",
+                        size: "sm",
+                        flex: 3,
+                      },
+                      {
+                        type: "text",
+                        text: `งวดที่ ${expense.installmentCurrent} จาก ${expense.installmentTotal}`,
+                        color: "#1C2837",
+                        size: "sm",
+                        weight: "bold",
+                        flex: 5,
+                        align: "end",
+                      },
+                    ],
+                  },
+                ]
+              : []),
             {
               type: "box",
               layout: "baseline",

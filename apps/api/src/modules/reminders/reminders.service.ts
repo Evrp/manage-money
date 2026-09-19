@@ -49,6 +49,7 @@ export class RemindersService {
 
   async create(userId: string, dto: CreateRecurringExpenseDto) {
     await this.assertOwnedCategory(userId, dto.categoryId);
+    this.assertInstallment(dto.installmentCurrent, dto.installmentTotal);
     return this.recurringExpenseModel.create({
       userId,
       ...dto,
@@ -59,11 +60,31 @@ export class RemindersService {
 
   async update(userId: string, id: string, dto: UpdateRecurringExpenseDto) {
     await this.assertOwnedCategory(userId, dto.categoryId);
+    const existing = await this.recurringExpenseModel.findOne({
+      _id: id,
+      userId,
+    });
+    if (!existing) throw new BadRequestException("ไม่พบบิลประจำ");
+    this.assertInstallment(
+      dto.installmentCurrent ?? existing.installmentCurrent,
+      dto.installmentTotal ?? existing.installmentTotal,
+    );
     return this.recurringExpenseModel.findOneAndUpdate(
       { _id: id, userId },
       { $set: { ...dto, reminderTime: this.reminderTime } },
       { new: true },
     );
+  }
+
+  private assertInstallment(current?: number, total?: number) {
+    if ((current === undefined) !== (total === undefined)) {
+      throw new BadRequestException(
+        "กรุณาระบุงวดปัจจุบันและจำนวนงวดทั้งหมดให้ครบ",
+      );
+    }
+    if (current !== undefined && total !== undefined && current > total) {
+      throw new BadRequestException("งวดปัจจุบันต้องไม่มากกว่าจำนวนงวดทั้งหมด");
+    }
   }
 
   private bangkokParts(date: Date): BangkokDateParts {
@@ -97,7 +118,7 @@ export class RemindersService {
     const dueExpenses = candidates.filter(
       (expense) =>
         this.dueDayInMonth(expense.dueDay, current.year, current.month) ===
-          current.day,
+        current.day,
     );
     let sent = 0;
 
@@ -125,7 +146,13 @@ export class RemindersService {
       const dateLabel = `${current.day} ${new Intl.DateTimeFormat("th-TH", { timeZone: this.timezone, month: "long" }).format(now)} ${current.year + 543}`;
       const delivered = await this.notificationsService.sendLineMessage(
         user.lineUserId,
-        [createRecurringExpenseReminderFlex(claimed, dateLabel, this.reminderTime)],
+        [
+          createRecurringExpenseReminderFlex(
+            claimed,
+            dateLabel,
+            this.reminderTime,
+          ),
+        ],
       );
 
       if (delivered) {

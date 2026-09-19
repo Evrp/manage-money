@@ -18,6 +18,8 @@ type Reminder = {
   name: string;
   amount: number;
   dueDay: number;
+  installmentCurrent?: number;
+  installmentTotal?: number;
   enabled: boolean;
   categoryId?: Category;
 };
@@ -27,6 +29,9 @@ const defaultForm = {
   amount: "",
   dueDay: "1",
   categoryId: "",
+  isInstallment: false,
+  installmentCurrent: "1",
+  installmentTotal: "",
 };
 
 const money = (amount: number) =>
@@ -61,6 +66,12 @@ export default function RecurringExpenseReminders({
         name: form.name.trim(),
         amount: Number(form.amount),
         dueDay: Number(form.dueDay),
+        ...(form.isInstallment
+          ? {
+              installmentCurrent: Number(form.installmentCurrent),
+              installmentTotal: Number(form.installmentTotal),
+            }
+          : {}),
         ...(form.categoryId ? { categoryId: form.categoryId } : {}),
       }),
     onSuccess: () => {
@@ -88,14 +99,20 @@ export default function RecurringExpenseReminders({
       return setError("กรุณาระบุจำนวนเงินที่ถูกต้อง");
     if (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31)
       return setError("วันครบกำหนดต้องอยู่ระหว่าง 1–31");
+    if (form.isInstallment) {
+      const current = Number(form.installmentCurrent);
+      const total = Number(form.installmentTotal);
+      if (!Number.isInteger(current) || !Number.isInteger(total) || current < 1 || total < current)
+        return setError("กรุณาระบุงวดปัจจุบันและจำนวนงวดทั้งหมดให้ถูกต้อง");
+    }
     setError("");
     createMutation.mutate();
   };
 
   return (
     <section className="panel recurring-reminders">
-      <div className="panel-heading">
-        <div>
+      <div className="panel-heading recurring-heading">
+        <div className="recurring-heading-copy">
           <span className="eyebrow">RECURRING BILLS</span>
           <h2>บิลที่ต้องจ่ายทุกเดือน</h2>
           <p>
@@ -105,14 +122,14 @@ export default function RecurringExpenseReminders({
         </div>
         <button
           type="button"
-          className="primary-button"
+          className="primary-button recurring-add-button"
           onClick={() => {
             setShowForm(true);
             setError("");
           }}
         >
           <Plus size={17} />
-          เพิ่มบิล
+          <span>เพิ่มบิล</span>
         </button>
       </div>
       {isLoading ? (
@@ -147,6 +164,9 @@ export default function RecurringExpenseReminders({
                 <strong>{reminder.name}</strong>
                 <span>
                   {money(reminder.amount)} · ทุกวันที่ {reminder.dueDay}
+                  {reminder.installmentCurrent && reminder.installmentTotal
+                    ? ` · งวดที่ ${reminder.installmentCurrent}/${reminder.installmentTotal}`
+                    : ""}
                 </span>
                 <small>
                   <Clock3 size={13} />
@@ -200,7 +220,7 @@ export default function RecurringExpenseReminders({
             </div>
             <p className="form-helper">
               <CalendarDays size={16} />
-              LINE จะแจ้งในวันครบกำหนด เวลา 09:00 น. (เวลาไทย)
+              แจ้งเตือนผ่าน LINE เวลา 09:00 น. ในวันครบกำหนด
             </p>
             <label>
               ชื่อรายการ
@@ -242,24 +262,56 @@ export default function RecurringExpenseReminders({
                 />
               </label>
             </div>
-            <div className="form-grid">
-              <label className="col-span-full">
-                หมวดหมู่ (ไม่บังคับ)
-                <select
-                  value={form.categoryId}
-                  onChange={(event) =>
-                    setForm({ ...form, categoryId: event.target.value })
-                  }
-                >
-                  <option value="">ไม่ระบุหมวดหมู่</option>
-                  {categories.map((category) => (
-                    <option key={category._id} value={category._id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
+            <label className="installment-toggle">
+              <input
+                type="checkbox"
+                checked={form.isInstallment}
+                onChange={(event) => setForm({ ...form, isInstallment: event.target.checked })}
+              />
+              <span>
+                <strong>ผ่อนชำระเป็นงวด</strong>
+                <small>ระบุงวดที่กำลังจ่ายและจำนวนงวดทั้งหมด</small>
+              </span>
+            </label>
+            {form.isInstallment && (
+              <div className="form-grid">
+                <label>
+                  งวดปัจจุบัน
+                  <input
+                    type="number"
+                    min="1"
+                    value={form.installmentCurrent}
+                    onChange={(event) => setForm({ ...form, installmentCurrent: event.target.value })}
+                  />
+                </label>
+                <label>
+                  ทั้งหมด (งวด)
+                  <input
+                    type="number"
+                    min="1"
+                    value={form.installmentTotal}
+                    onChange={(event) => setForm({ ...form, installmentTotal: event.target.value })}
+                    placeholder="เช่น 12"
+                  />
+                </label>
+              </div>
+            )}
+            <label>
+              หมวดหมู่ <span className="field-optional">ไม่บังคับ</span>
+              <select
+                value={form.categoryId}
+                onChange={(event) =>
+                  setForm({ ...form, categoryId: event.target.value })
+                }
+              >
+                <option value="">ไม่ระบุหมวดหมู่</option>
+                {categories.map((category) => (
+                  <option key={category._id} value={category._id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </label>
             {error && (
               <p className="form-error" role="alert">
                 {error}

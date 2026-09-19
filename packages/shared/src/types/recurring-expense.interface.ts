@@ -5,6 +5,8 @@ export interface IRecurringExpense {
   name: string;
   amount: number;
   dueDay: number;
+  installmentCurrent?: number;
+  installmentTotal?: number;
   reminderTime: string;
   enabled: boolean;
   lastReminderKey?: string;

@@ -4,6 +4,8 @@ export interface RecurringExpensePayload {
   name?: string;
   amount?: number;
   dueDay?: number;
+  installmentCurrent?: number;
+  installmentTotal?: number;
   categoryId?: string;
   enabled?: boolean;
 }

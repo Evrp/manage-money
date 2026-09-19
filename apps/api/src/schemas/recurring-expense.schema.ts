@@ -19,6 +19,12 @@ export class RecurringExpense extends Document implements IRecurringExpense {
   @Prop({ required: true, min: 1, max: 31 })
   dueDay: number;
 
+  @Prop({ min: 1 })
+  installmentCurrent?: number;
+
+  @Prop({ min: 1 })
+  installmentTotal?: number;
+
   @Prop({ default: "09:00", match: /^([01]\d|2[0-3]):[0-5]\d$/ })
   reminderTime: string;
 

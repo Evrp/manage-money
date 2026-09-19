@@ -32,6 +32,18 @@ export class UpdateRecurringExpenseDto {
   dueDay?: number;
 
   @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  installmentCurrent?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  installmentTotal?: number;
+
+  @IsOptional()
   @Matches(/^([01]\d|2[0-3]):[0-5]\d$/)
   reminderTime?: string;
 
