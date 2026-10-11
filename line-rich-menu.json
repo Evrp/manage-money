@@ -8,28 +8,19 @@
   "chatBarText": "เมนูหลัก",
   "areas": [
     {
-      "bounds": { "x": 0, "y": 0, "width": 833, "height": 843 },
-      "action": { "type": "uri", "uri": "https://liff.line.me/2009773487-949CUiSy/" }
+      "bounds": { "x": 0, "y": 820, "width": 833, "height": 866 },
+      "action": {
+        "type": "uri",
+        "uri": "https://liff.line.me/2009773487-949CUiSy/"
+      }
     },
     {
-      "bounds": { "x": 833, "y": 0, "width": 834, "height": 843 },
-      "action": { "type": "uri", "uri": "https://liff.line.me/2009773487-949CUiSy/transactions" }
+      "bounds": { "x": 833, "y": 820, "width": 834, "height": 866 },
+      "action": { "type": "message", "text": "สรุป" }
     },
     {
-      "bounds": { "x": 1667, "y": 0, "width": 833, "height": 843 },
-      "action": { "type": "uri", "uri": "https://liff.line.me/2009773487-949CUiSy/dashboard" }
-    },
-    {
-      "bounds": { "x": 0, "y": 843, "width": 833, "height": 843 },
-      "action": { "type": "camera", "label": "อัพโหลดสลิป" }
-    },
-    {
-      "bounds": { "x": 833, "y": 843, "width": 834, "height": 843 },
-      "action": { "type": "uri", "uri": "https://liff.line.me/2009773487-949CUiSy/budgets" }
-    },
-    {
-      "bounds": { "x": 1667, "y": 843, "width": 833, "height": 843 },
-      "action": { "type": "message", "text": "ตั้งค่า" }
+      "bounds": { "x": 1667, "y": 820, "width": 833, "height": 866 },
+      "action": { "type": "camera", "label": "อัปโหลดสลิป" }
     }
   ]
 }
