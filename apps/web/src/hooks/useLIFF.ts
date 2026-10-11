@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import liff from "@line/liff";
 import { useAuthStore } from "../store/auth.store";
-import { authenticateDevelopment, authenticateWithLine } from "../services/authService";
+import {
+  authenticateDevelopment,
+  authenticateWithLine,
+} from "../services/authService";
+import { registerAuthRecoveryHandler } from "../services/api";
 
 export const useLIFF = (liffId: string) => {
   const [isReady, setIsReady] = useState(false);
@@ -9,6 +13,32 @@ export const useLIFF = (liffId: string) => {
   const setAuth = useAuthStore((state) => state.setAuth);
 
   useEffect(() => {
+    const unregisterAuthRecovery = registerAuthRecoveryHandler(async () => {
+      if (import.meta.env.MODE === "development") {
+        const response = await authenticateDevelopment();
+        const { user, accessToken } = response.data;
+        setAuth(user, accessToken);
+        return accessToken;
+      }
+
+      if (!liff.isLoggedIn()) {
+        liff.login();
+        return null;
+      }
+
+      const idToken = liff.getIDToken();
+      if (!idToken) {
+        liff.logout();
+        liff.login();
+        return null;
+      }
+
+      const response = await authenticateWithLine({ idToken });
+      const { user, accessToken } = response.data;
+      setAuth(user, accessToken);
+      return accessToken;
+    });
+
     const initLIFF = async () => {
       try {
         // Vite sets MODE to "development" when NODE_ENV=development. Do not
@@ -41,8 +71,8 @@ export const useLIFF = (liffId: string) => {
 
         // If it's an authentication error (expired token), force clear everything
         if (err.response?.status === 401 || err.message?.includes("expired")) {
+          useAuthStore.getState().logout();
           liff.logout();
-          localStorage.removeItem("auth-storage");
           liff.login();
         } else {
           setError(err.message);
@@ -53,6 +83,8 @@ export const useLIFF = (liffId: string) => {
     if (import.meta.env.MODE === "development" || liffId) {
       initLIFF();
     }
+
+    return unregisterAuthRecovery;
   }, [liffId, setAuth]);
 
   return { isReady, error, liff };
