@@ -2,15 +2,15 @@ import { Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { NotificationsService } from "../notifications/notifications.service";
-import { AdvisorService } from "../advisor/advisor.service";
 import { User } from "../../schemas/user.schema";
+import { ChatFlowService } from "../chat-flow/chat-flow.service";
 
 @Injectable()
 export class WebhookService {
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
     private readonly notificationsService: NotificationsService,
-    private readonly advisorService: AdvisorService,
+    private readonly chatFlowService: ChatFlowService,
   ) {}
 
   async handleEvent(event: any) {
@@ -31,6 +31,14 @@ export class WebhookService {
           { type: "text", text: "กด 📸 ในเมนูด้านล่างเพื่ออัพโหลดสลิปได้เลย!" },
         ]);
       }
+    } else if (type === "postback") {
+      const user = await this.userModel.findOne({ lineUserId });
+      if (!user) return;
+      await this.chatFlowService.handlePostback(
+        user._id.toString(),
+        lineUserId,
+        event.postback?.data || "",
+      );
     }
   }
 
@@ -49,29 +57,26 @@ export class WebhookService {
     // Inform user that AI is thinking
     // (Optional: LINE typing indicators aren't as easy as a quick message)
 
-    const advice = await this.advisorService.getAdvice(
+    await this.chatFlowService.handleMessage(
       user._id.toString(),
+      lineUserId,
       text,
     );
-    await this.notificationsService.sendLineMessage(lineUserId, [
-      { type: "text", text: advice },
-    ]);
   }
 
   private async sendWelcomeMessage(lineUserId: string) {
-    const message = {
-      type: "text",
-      text: "ยินดีต้อนรับสู่ Fumi Manager! 🐾\n\nช่วยคุณจัดการรายรับ-รายจ่ายผ่าน LINE ได้ง่ายๆ\n\n- อัพโหลดสลิปธนาคารเพื่อบันทึกอัตโนมัติ\n- ตั้งงบประมาณรายเดือน\n- ดู Dashboard สรุปผลสวยๆ\n\nเริ่มใช้งานได้ที่เมนูด้านล่างเลยครับ!",
-    };
-    await this.notificationsService.sendLineMessage(lineUserId, [message]);
+    await this.notificationsService.sendLineMessage(lineUserId, [
+      {
+        type: "text",
+        text: "ยินดีต้อนรับสู่ Fumi Manager! 🐾 เลือกหัวข้อที่อยากดูได้เลยครับ",
+      },
+      this.chatFlowService.createSummaryTypeBubble(),
+    ]);
   }
 
   private async sendMonthlySummary(lineUserId: string) {
-    // Placeholder for monthly summary call
-    const message = {
-      type: "text",
-      text: "ฟีเจอร์สรุปรายเดือนกำลังตามมาเร็วๆ นี้ครับ!",
-    };
-    await this.notificationsService.sendLineMessage(lineUserId, [message]);
+    await this.notificationsService.sendLineMessage(lineUserId, [
+      this.chatFlowService.createSummaryTypeBubble(),
+    ]);
   }
 }

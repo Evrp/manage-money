@@ -6,6 +6,7 @@ import { NotificationsModule } from "../notifications/notifications.module";
 import { AdvisorModule } from "../advisor/advisor.module";
 import { AuthModule } from "../auth/auth.module";
 import { User, UserSchema } from "../../schemas/user.schema";
+import { ChatFlowModule } from "../chat-flow/chat-flow.module";
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { User, UserSchema } from "../../schemas/user.schema";
     NotificationsModule,
     AdvisorModule,
     AuthModule,
+    ChatFlowModule,
   ],
   controllers: [WebhookController],
   providers: [WebhookService],

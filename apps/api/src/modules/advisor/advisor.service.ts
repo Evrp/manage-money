@@ -1,14 +1,14 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import { TransactionsService } from "../transactions/transactions.service";
 import { BudgetsService } from "../budgets/budgets.service";
-import { GeminiService } from "../gemini/gemini.service";
+import { AI_PROVIDER, AiProvider } from "../ai-provider/ai-provider";
 
 @Injectable()
 export class AdvisorService {
   constructor(
     private readonly transactionsService: TransactionsService,
     private readonly budgetsService: BudgetsService,
-    private readonly geminiService: GeminiService,
+    @Inject(AI_PROVIDER) private readonly aiProvider: AiProvider,
   ) {}
 
   async getAdvice(userId: string, userMessage: string): Promise<string> {
@@ -57,17 +57,9 @@ ${transactionContext}
 5. หากถามถึงยอดสรุป ให้สรุปให้กระชับ`;
 
     try {
-      const result = await this.geminiService.generateContent({
-        contents: [
-          {
-            parts: [
-              { text: `${systemPrompt}\n\nผู้ใช้ถามว่า: ${userMessage}` },
-            ],
-          },
-        ],
-      });
-
-      return result.candidates[0].content.parts[0].text;
+      return await this.aiProvider.generateText(
+        `${systemPrompt}\n\nผู้ใช้ถามว่า: ${userMessage}`,
+      );
     } catch (error: any) {
       return "ขออภัยครับ ผมไม่สามารถวิเคราะห์ข้อมูลได้ในขณะนี้ ลองใหม่อีกครั้งนะครับ";
     }
