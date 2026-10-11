@@ -4,7 +4,7 @@ import { Model } from "mongoose";
 import { SlipUpload } from "../../schemas/slip-upload.schema";
 import { TransactionsService } from "../transactions/transactions.service";
 import { CreateTransactionDto } from "../transactions/dto/create-transaction.dto";
-import { SlipUploadStatus } from "@moneyflow/shared";
+import { SlipUploadStatus, TransactionType } from "@moneyflow/shared";
 import sharp from "sharp";
 import { FirebaseService } from "../firebase/firebase.service";
 import { GeminiService } from "../gemini/gemini.service";
@@ -63,6 +63,19 @@ export class SlipsService {
         requiresManualEntry: true,
       };
     }
+  }
+
+  async processLineImage(
+    userId: string,
+    messageId: string,
+    file: Express.Multer.File,
+  ) {
+    const extension =
+      file.mimetype.split("/")[1]?.replace(/[^a-zA-Z0-9]/g, "") || "jpg";
+    return this.processUpload(userId, {
+      ...file,
+      originalname: `line_${messageId}.${extension}`,
+    });
   }
 
   async uploadOnly(userId: string, file: Express.Multer.File) {
@@ -204,6 +217,67 @@ export class SlipsService {
     await slipUpload.save();
 
     return transaction;
+  }
+
+  async confirmFromLine(
+    userId: string,
+    slipId: string,
+    categoryId: string,
+    type: "income" | "expense",
+  ) {
+    const slipUpload = await this.slipUploadModel.findOne({
+      _id: slipId,
+      userId,
+      transactionId: { $exists: false },
+    });
+    if (!slipUpload)
+      throw new BadRequestException("ไม่พบสลิปนี้หรือสลิปถูกบันทึกไปแล้ว");
+
+    const extracted = slipUpload.extractedData || {};
+    const amount = Number(extracted.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new BadRequestException(
+        "อ่านยอดเงินจากรูปไม่สำเร็จ กรุณาส่งรูปสลิปที่เห็นยอดชัดเจนอีกครั้ง",
+      );
+    }
+
+    const date =
+      extracted.transactionDate &&
+      !Number.isNaN(Date.parse(extracted.transactionDate))
+        ? new Date(extracted.transactionDate)
+        : new Date();
+    const transaction = await this.transactionsService.create(userId, {
+      categoryId,
+      type:
+        type === "income" ? TransactionType.INCOME : TransactionType.EXPENSE,
+      amount,
+      date: date.toISOString(),
+      description: extracted.toName || undefined,
+      note: extracted.referenceNo
+        ? `เลขอ้างอิง ${extracted.referenceNo}`
+        : undefined,
+      slipImageUrl: slipUpload.imageUrl,
+      documentType: extracted.documentType || undefined,
+      cashAdvanceAmount: this.toOptionalNumber(extracted.cashAdvanceAmount),
+      feeAmount: this.toOptionalNumber(extracted.feeAmount),
+      receiptInterestRate: this.toOptionalNumber(extracted.receiptInterestRate),
+      minimumPaymentRate: this.toOptionalNumber(extracted.minimumPaymentRate),
+      minimumPaymentAmount: this.toOptionalNumber(
+        extracted.minimumPaymentAmount,
+      ),
+      referenceNumber: extracted.referenceNo || undefined,
+    });
+
+    slipUpload.status = SlipUploadStatus.SUCCESS;
+    slipUpload.transactionId = (transaction._id as any).toString();
+    await slipUpload.save();
+    return { transaction, amount, date };
+  }
+
+  private toOptionalNumber(value: unknown): number | undefined {
+    if (value === null || value === undefined || value === "") return undefined;
+    const number = Number(value);
+    return Number.isFinite(number) ? number : undefined;
   }
 
   async processBatchUpload(userId: string, files: Express.Multer.File[]) {

@@ -37,6 +37,25 @@ export class NotificationsService {
     }
   }
 
+  async getLineMessageContent(messageId: string) {
+    const accessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+    if (!accessToken)
+      throw new Error("LINE_CHANNEL_ACCESS_TOKEN not configured");
+
+    const response = await axios.get(
+      `https://api-data.line.me/v2/bot/message/${encodeURIComponent(messageId)}/content`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        responseType: "arraybuffer",
+      },
+    );
+
+    return {
+      buffer: Buffer.from(response.data),
+      mimeType: response.headers["content-type"] || "image/jpeg",
+    };
+  }
+
   async checkBudgetAlerts(
     userId: string,
     categoryId: string,

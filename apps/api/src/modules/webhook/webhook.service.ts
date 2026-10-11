@@ -24,12 +24,24 @@ export class WebhookService {
         if (message.text === "สรุป") {
           await this.sendMonthlySummary(lineUserId);
         } else {
-          await this.handleAdvisorChat(lineUserId, message.text);
+          await this.handleChatMessage(lineUserId, message.text);
         }
       } else if (message.type === "image") {
-        await this.notificationsService.sendLineMessage(lineUserId, [
-          { type: "text", text: "กด 📸 ในเมนูด้านล่างเพื่ออัพโหลดสลิปได้เลย!" },
-        ]);
+        const user = await this.userModel.findOne({ lineUserId });
+        if (!user) {
+          await this.notificationsService.sendLineMessage(lineUserId, [
+            {
+              type: "text",
+              text: "ขออภัยครับ ไม่พบข้อมูลผู้ใช้ กรุณาเข้าสู่ระบบผ่าน LIFF ก่อนนะครับ",
+            },
+          ]);
+          return;
+        }
+        await this.chatFlowService.handleImage(
+          user._id.toString(),
+          lineUserId,
+          message.id,
+        );
       }
     } else if (type === "postback") {
       const user = await this.userModel.findOne({ lineUserId });
@@ -42,7 +54,7 @@ export class WebhookService {
     }
   }
 
-  private async handleAdvisorChat(lineUserId: string, text: string) {
+  private async handleChatMessage(lineUserId: string, text: string) {
     const user = await this.userModel.findOne({ lineUserId });
     if (!user) {
       await this.notificationsService.sendLineMessage(lineUserId, [
