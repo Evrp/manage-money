@@ -14,6 +14,28 @@ const SUMMARY_LABELS: Record<SummaryType, string> = {
   net: "ยอดคงเหลือ",
 };
 
+const FLEX_THEME = {
+  navy: "#0B1733",
+  surface: "#102344",
+  row: "#173A42",
+  green: "#18D477",
+  amber: "#FFB52E",
+  text: "#F5F8FF",
+  muted: "#A8B7D0",
+  divider: "#263D60",
+};
+
+const FLEX_BUBBLE_STYLES = {
+  body: {
+    backgroundColor: FLEX_THEME.navy,
+    separatorColor: FLEX_THEME.divider,
+  },
+  footer: {
+    backgroundColor: FLEX_THEME.surface,
+    separatorColor: FLEX_THEME.divider,
+  },
+};
+
 @Injectable()
 export class ChatFlowService {
   constructor(
@@ -101,6 +123,7 @@ export class ChatFlowService {
       altText: "เลือกหัวข้อสรุปที่ต้องการ",
       contents: {
         type: "bubble",
+        styles: FLEX_BUBBLE_STYLES,
         body: {
           type: "box",
           layout: "vertical",
@@ -111,13 +134,14 @@ export class ChatFlowService {
               text: "อยากดูสรุปเรื่องไหนครับ?",
               weight: "bold",
               size: "lg",
+              color: FLEX_THEME.text,
               wrap: true,
             },
             {
               type: "text",
               text: "เลือกหัวข้อด้านล่างเพื่อไปขั้นตอนถัดไป",
               size: "sm",
-              color: "#687076",
+              color: FLEX_THEME.muted,
               wrap: true,
             },
           ],
@@ -129,7 +153,9 @@ export class ChatFlowService {
           contents: (["income", "expense", "net"] as SummaryType[]).map(
             (summaryType) => ({
               type: "button",
-              style: summaryType === "expense" ? "primary" : "secondary",
+              style: "primary",
+              color:
+                summaryType === "expense" ? FLEX_THEME.amber : FLEX_THEME.green,
               action: {
                 type: "postback",
                 label: SUMMARY_LABELS[summaryType],
@@ -212,15 +238,21 @@ export class ChatFlowService {
         altText: `สรุป${SUMMARY_LABELS[summaryType]}${periodLabel}`,
         contents: {
           type: "bubble",
+          styles: {
+            ...FLEX_BUBBLE_STYLES,
+            header: {
+              backgroundColor:
+                summaryType === "expense" ? "#80500F" : "#075B3D",
+            },
+          },
           header: {
             type: "box",
             layout: "vertical",
-            backgroundColor: summaryType === "expense" ? "#F97316" : "#16A34A",
             contents: [
               {
                 type: "text",
                 text: `สรุป${SUMMARY_LABELS[summaryType]}`,
-                color: "#FFFFFF",
+                color: FLEX_THEME.text,
                 weight: "bold",
                 size: "lg",
               },
@@ -231,12 +263,18 @@ export class ChatFlowService {
             layout: "vertical",
             spacing: "md",
             contents: [
-              { type: "text", text: periodLabel, color: "#687076", size: "sm" },
+              {
+                type: "text",
+                text: periodLabel,
+                color: FLEX_THEME.muted,
+                size: "sm",
+              },
               {
                 type: "text",
                 text: `฿${amount.toLocaleString("th-TH")}`,
                 weight: "bold",
                 size: "xxl",
+                color: FLEX_THEME.text,
                 wrap: true,
               },
             ],
@@ -247,7 +285,8 @@ export class ChatFlowService {
             contents: [
               {
                 type: "button",
-                style: "secondary",
+                style: "primary",
+                color: FLEX_THEME.green,
                 action: {
                   type: "postback",
                   label: "ดูสรุปหัวข้ออื่น",
@@ -332,6 +371,7 @@ export class ChatFlowService {
       altText: "เลือกประเภทรายการจากสลิป",
       contents: {
         type: "bubble",
+        styles: FLEX_BUBBLE_STYLES,
         body: {
           type: "box",
           layout: "vertical",
@@ -342,13 +382,14 @@ export class ChatFlowService {
               text: "สลิปนี้เป็นรายการแบบไหนครับ?",
               weight: "bold",
               size: "lg",
+              color: FLEX_THEME.text,
               wrap: true,
             },
             {
               type: "text",
               text: "เลือกประเภทรายการเพื่อไปเลือกหมวดหมู่",
               size: "sm",
-              color: "#687076",
+              color: FLEX_THEME.muted,
               wrap: true,
             },
           ],
@@ -359,7 +400,8 @@ export class ChatFlowService {
           spacing: "sm",
           contents: (["expense", "income"] as const).map((type) => ({
             type: "button",
-            style: type === "expense" ? "primary" : "secondary",
+            style: "primary",
+            color: type === "expense" ? FLEX_THEME.amber : FLEX_THEME.green,
             action: {
               type: "postback",
               label: type === "expense" ? "รายจ่าย" : "รายรับ",
@@ -389,7 +431,8 @@ export class ChatFlowService {
         .slice(activePage * size, (activePage + 1) * size)
         .map((category) => ({
           type: "button",
-          style: "secondary",
+          style: "primary",
+          color: FLEX_THEME.row,
           action: {
             type: "postback",
             label: String(category.name).slice(0, 40),
@@ -427,6 +470,7 @@ export class ChatFlowService {
         altText: `เลือกหมวดหมู่${type === "expense" ? "รายจ่าย" : "รายรับ"}`,
         contents: {
           type: "bubble",
+          styles: FLEX_BUBBLE_STYLES,
           body: {
             type: "box",
             layout: "vertical",
@@ -437,13 +481,14 @@ export class ChatFlowService {
                 text: `เลือกหมวดหมู่${type === "expense" ? "รายจ่าย" : "รายรับ"}`,
                 weight: "bold",
                 size: "lg",
+                color: FLEX_THEME.text,
                 wrap: true,
               },
               {
                 type: "text",
                 text: `เลือกได้ ${categories.length} หมวดหมู่`,
                 size: "sm",
-                color: "#687076",
+                color: FLEX_THEME.muted,
               },
             ],
           },
@@ -478,6 +523,7 @@ export class ChatFlowService {
       altText: `เลือกช่วงเวลาสำหรับ${SUMMARY_LABELS[summaryType]}`,
       contents: {
         type: "bubble",
+        styles: FLEX_BUBBLE_STYLES,
         body: {
           type: "box",
           layout: "vertical",
@@ -488,6 +534,7 @@ export class ChatFlowService {
               text: `ต้องการดู${SUMMARY_LABELS[summaryType]}ช่วงไหนครับ?`,
               weight: "bold",
               size: "lg",
+              color: FLEX_THEME.text,
               wrap: true,
             },
           ],
@@ -499,7 +546,8 @@ export class ChatFlowService {
           contents: (["current", "previous"] as SummaryPeriod[]).map(
             (period) => ({
               type: "button",
-              style: period === "current" ? "primary" : "secondary",
+              style: "primary",
+              color: period === "current" ? FLEX_THEME.green : FLEX_THEME.amber,
               action: {
                 type: "postback",
                 label: period === "current" ? "เดือนนี้" : "เดือนก่อน",
