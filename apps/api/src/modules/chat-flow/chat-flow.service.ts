@@ -378,72 +378,98 @@ export class ChatFlowService {
     categories: any[],
     page: number,
   ) {
-    const pageSize = 4;
-    const pages = Math.max(1, Math.ceil(categories.length / pageSize));
-    const activePage = Math.min(page, pages - 1);
-    const categoryButtons = categories
-      .slice(activePage * pageSize, (activePage + 1) * pageSize)
-      .map((category) => ({
-        type: "button",
-        style: "secondary",
-        action: {
-          type: "postback",
-          label: String(category.name).slice(0, 20),
-          data: `flow=slip&slipId=${slipId}&type=${type}&categoryId=${category._id}`,
-          displayText: category.name,
-        },
-      }));
-    const navigation = [];
-    if (pages > 1) {
-      navigation.push({
-        type: "button",
-        style: "link",
-        action: {
-          type: "postback",
-          label: `${activePage + 1}/${pages} · หน้าถัดไป`,
-          data: `flow=slip&slipId=${slipId}&type=${type}&page=${(activePage + 1) % pages}`,
-          displayText: "ดูหมวดหมู่เพิ่มเติม",
-        },
-      });
-    }
-    const contents = categoryButtons.length
-      ? [...categoryButtons, ...navigation]
-      : [
-          {
-            type: "text",
-            text: "ยังไม่มีหมวดหมู่ประเภทนี้ในบัญชี",
-            wrap: true,
-          },
-        ];
+    const maxFlexMessageBytes = 28 * 1024;
+    let pageSize = Math.max(1, categories.length);
+    let message: Record<string, any>;
 
-    return {
-      type: "flex",
-      altText: `เลือกหมวดหมู่${type === "expense" ? "รายจ่าย" : "รายรับ"}`,
-      contents: {
-        type: "bubble",
-        body: {
-          type: "box",
-          layout: "vertical",
-          spacing: "sm",
-          contents: [
+    const buildMessage = (size: number, requestedPage = page) => {
+      const pages = Math.max(1, Math.ceil(categories.length / size));
+      const activePage = Math.min(requestedPage, pages - 1);
+      const categoryButtons = categories
+        .slice(activePage * size, (activePage + 1) * size)
+        .map((category) => ({
+          type: "button",
+          style: "secondary",
+          action: {
+            type: "postback",
+            label: String(category.name).slice(0, 40),
+            data: `flow=slip&slipId=${slipId}&type=${type}&categoryId=${category._id}`,
+            displayText: String(category.name).slice(0, 300),
+          },
+        }));
+      const navigation =
+        pages > 1
+          ? [
+              {
+                type: "button",
+                style: "link",
+                action: {
+                  type: "postback",
+                  label: `${activePage + 1}/${pages} · หน้าถัดไป`,
+                  data: `flow=slip&slipId=${slipId}&type=${type}&page=${(activePage + 1) % pages}`,
+                  displayText: "ดูหมวดหมู่เพิ่มเติม",
+                },
+              },
+            ]
+          : [];
+      const contents = categoryButtons.length
+        ? [...categoryButtons, ...navigation]
+        : [
             {
               type: "text",
-              text: `เลือกหมวดหมู่${type === "expense" ? "รายจ่าย" : "รายรับ"}`,
-              weight: "bold",
-              size: "lg",
+              text: "ยังไม่มีหมวดหมู่ประเภทนี้ในบัญชี",
               wrap: true,
             },
-            {
-              type: "text",
-              text: `เลือกได้ ${categories.length} หมวดหมู่`,
-              size: "sm",
-              color: "#687076",
-            },
-          ],
+          ];
+
+      return {
+        type: "flex",
+        altText: `เลือกหมวดหมู่${type === "expense" ? "รายจ่าย" : "รายรับ"}`,
+        contents: {
+          type: "bubble",
+          body: {
+            type: "box",
+            layout: "vertical",
+            spacing: "sm",
+            contents: [
+              {
+                type: "text",
+                text: `เลือกหมวดหมู่${type === "expense" ? "รายจ่าย" : "รายรับ"}`,
+                weight: "bold",
+                size: "lg",
+                wrap: true,
+              },
+              {
+                type: "text",
+                text: `เลือกได้ ${categories.length} หมวดหมู่`,
+                size: "sm",
+                color: "#687076",
+              },
+            ],
+          },
+          footer: { type: "box", layout: "vertical", spacing: "sm", contents },
         },
-        footer: { type: "box", layout: "vertical", spacing: "sm", contents },
-      },
+      };
     };
+
+    // Show every category in one menu when possible. Split only when the JSON
+    // approaches LINE's 30 KB Flex bubble limit.
+    while (true) {
+      const pages = Math.max(1, Math.ceil(categories.length / pageSize));
+      const everyPageFits = Array.from({ length: pages }, (_, index) =>
+        buildMessage(pageSize, index),
+      ).every(
+        (candidate) =>
+          Buffer.byteLength(JSON.stringify(candidate), "utf8") <=
+          maxFlexMessageBytes,
+      );
+      if (everyPageFits || pageSize === 1) break;
+      pageSize = Math.max(1, Math.floor(pageSize * 0.8));
+    }
+
+    message = buildMessage(pageSize);
+
+    return message;
   }
 
   private createPeriodBubble(summaryType: SummaryType) {
