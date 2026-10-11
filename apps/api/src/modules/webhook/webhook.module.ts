@@ -7,10 +7,17 @@ import { AdvisorModule } from "../advisor/advisor.module";
 import { AuthModule } from "../auth/auth.module";
 import { User, UserSchema } from "../../schemas/user.schema";
 import { ChatFlowModule } from "../chat-flow/chat-flow.module";
+import {
+  WebhookEvent,
+  WebhookEventSchema,
+} from "../../schemas/webhook-event.schema";
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    MongooseModule.forFeature([
+      { name: User.name, schema: UserSchema },
+      { name: WebhookEvent.name, schema: WebhookEventSchema },
+    ]),
     NotificationsModule,
     AdvisorModule,
     AuthModule,

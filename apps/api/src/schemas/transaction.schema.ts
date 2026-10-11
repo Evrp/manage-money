@@ -1,6 +1,11 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { Document, Types } from "mongoose";
-import { TransactionType, ITransaction, ISlipData, PaymentMethod } from "@moneyflow/shared";
+import {
+  TransactionType,
+  ITransaction,
+  ISlipData,
+  PaymentMethod,
+} from "@moneyflow/shared";
 
 @Schema({ timestamps: true })
 export class Transaction extends Document implements ITransaction {
@@ -9,6 +14,9 @@ export class Transaction extends Document implements ITransaction {
 
   @Prop({ type: Types.ObjectId, ref: "Category", required: true })
   categoryId: string;
+
+  @Prop({ type: Types.ObjectId, ref: "SlipUpload" })
+  sourceSlipId?: string;
 
   @Prop({ type: String, enum: TransactionType, required: true })
   type: TransactionType;
@@ -81,4 +89,10 @@ export class Transaction extends Document implements ITransaction {
 
 export const TransactionSchema = SchemaFactory.createForClass(Transaction);
 TransactionSchema.index({ userId: 1, year: 1, month: 1 });
-TransactionSchema.index({ userId: 1, creditCardId: 1, statementYear: 1, statementMonth: 1 });
+TransactionSchema.index({
+  userId: 1,
+  creditCardId: 1,
+  statementYear: 1,
+  statementMonth: 1,
+});
+TransactionSchema.index({ sourceSlipId: 1 }, { unique: true, sparse: true });

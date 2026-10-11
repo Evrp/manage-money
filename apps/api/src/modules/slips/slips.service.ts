@@ -9,6 +9,7 @@ import sharp from "sharp";
 import { FirebaseService } from "../firebase/firebase.service";
 import { GeminiService } from "../gemini/gemini.service";
 import { PendingSlipsQueryDto } from "./dto/pending-slips-query.dto";
+import { randomUUID } from "crypto";
 
 @Injectable()
 export class SlipsService {
@@ -201,22 +202,82 @@ export class SlipsService {
     slipId: string,
     confirmData: CreateTransactionDto,
   ) {
-    const slipUpload = await this.slipUploadModel.findOne({
-      _id: slipId,
-      userId,
-    });
-    if (!slipUpload) throw new BadRequestException("Slip not found");
-
-    const transaction = await this.transactionsService.create(
-      userId,
-      confirmData,
+    const claimToken = randomUUID();
+    const now = new Date();
+    const slipUpload = await this.slipUploadModel.findOneAndUpdate(
+      {
+        _id: slipId,
+        userId,
+        transactionId: { $exists: false },
+        $or: [
+          { saveClaimExpiresAt: { $exists: false } },
+          { saveClaimExpiresAt: { $lte: now } },
+        ],
+      },
+      {
+        $set: {
+          saveClaimToken: claimToken,
+          saveClaimExpiresAt: new Date(now.getTime() + 5 * 60 * 1000),
+        },
+      },
+      { new: true },
     );
 
-    slipUpload.status = SlipUploadStatus.SUCCESS;
-    slipUpload.transactionId = (transaction._id as any).toString();
-    await slipUpload.save();
+    if (!slipUpload) {
+      const existing = await this.transactionsService.findBySourceSlipId(
+        userId,
+        slipId,
+      );
+      if (existing) {
+        await this.slipUploadModel.updateOne(
+          { _id: slipId, userId, transactionId: { $exists: false } },
+          {
+            $set: {
+              transactionId: existing._id,
+              status: SlipUploadStatus.SUCCESS,
+            },
+            $unset: { saveClaimToken: 1, saveClaimExpiresAt: 1 },
+          },
+        );
+        return existing;
+      }
+      throw new BadRequestException(
+        "สลิปนี้กำลังถูกบันทึกหรือบันทึกไปแล้ว กรุณารอสักครู่ครับ",
+      );
+    }
 
-    return transaction;
+    try {
+      const existing = await this.transactionsService.findBySourceSlipId(
+        userId,
+        slipId,
+      );
+      const transaction =
+        existing ||
+        (await this.transactionsService.create(userId, confirmData, slipId));
+      await this.finalizeSlipClaim(
+        slipId,
+        userId,
+        claimToken,
+        transaction._id.toString(),
+      );
+      return transaction;
+    } catch (error) {
+      const existing = await this.transactionsService.findBySourceSlipId(
+        userId,
+        slipId,
+      );
+      if (existing) {
+        await this.finalizeSlipClaim(
+          slipId,
+          userId,
+          claimToken,
+          existing._id.toString(),
+        );
+        return existing;
+      }
+      await this.releaseSlipClaim(slipId, userId, claimToken);
+      throw error;
+    }
   }
 
   async confirmFromLine(
@@ -225,17 +286,56 @@ export class SlipsService {
     categoryId: string,
     type: "income" | "expense",
   ) {
-    const slipUpload = await this.slipUploadModel.findOne({
-      _id: slipId,
-      userId,
-      transactionId: { $exists: false },
-    });
-    if (!slipUpload)
-      throw new BadRequestException("ไม่พบสลิปนี้หรือสลิปถูกบันทึกไปแล้ว");
+    const claimToken = randomUUID();
+    const now = new Date();
+    const slipUpload = await this.slipUploadModel.findOneAndUpdate(
+      {
+        _id: slipId,
+        userId,
+        transactionId: { $exists: false },
+        $or: [
+          { saveClaimExpiresAt: { $exists: false } },
+          { saveClaimExpiresAt: { $lte: now } },
+        ],
+      },
+      {
+        $set: {
+          saveClaimToken: claimToken,
+          saveClaimExpiresAt: new Date(now.getTime() + 5 * 60 * 1000),
+        },
+      },
+      { new: true },
+    );
+
+    if (!slipUpload) {
+      const existing = await this.transactionsService.findBySourceSlipId(
+        userId,
+        slipId,
+      );
+      if (existing) {
+        await this.slipUploadModel.updateOne(
+          { _id: slipId, userId, transactionId: { $exists: false } },
+          {
+            $set: {
+              transactionId: existing._id,
+              status: SlipUploadStatus.SUCCESS,
+            },
+            $unset: { saveClaimToken: 1, saveClaimExpiresAt: 1 },
+          },
+        );
+        const date = new Date(existing.date);
+        return { transaction: existing, amount: existing.amount, date };
+      }
+
+      throw new BadRequestException(
+        "สลิปนี้กำลังถูกบันทึกหรือบันทึกไปแล้ว กรุณารอสักครู่ครับ",
+      );
+    }
 
     const extracted = slipUpload.extractedData || {};
     const amount = Number(extracted.amount);
     if (!Number.isFinite(amount) || amount <= 0) {
+      await this.releaseSlipClaim(slipId, userId, claimToken);
       throw new BadRequestException(
         "อ่านยอดเงินจากรูปไม่สำเร็จ กรุณาส่งรูปสลิปที่เห็นยอดชัดเจนอีกครั้ง",
       );
@@ -246,32 +346,121 @@ export class SlipsService {
       !Number.isNaN(Date.parse(extracted.transactionDate))
         ? new Date(extracted.transactionDate)
         : new Date();
-    const transaction = await this.transactionsService.create(userId, {
-      categoryId,
-      type:
-        type === "income" ? TransactionType.INCOME : TransactionType.EXPENSE,
-      amount,
-      date: date.toISOString(),
-      description: extracted.toName || undefined,
-      note: extracted.referenceNo
-        ? `เลขอ้างอิง ${extracted.referenceNo}`
-        : undefined,
-      slipImageUrl: slipUpload.imageUrl,
-      documentType: extracted.documentType || undefined,
-      cashAdvanceAmount: this.toOptionalNumber(extracted.cashAdvanceAmount),
-      feeAmount: this.toOptionalNumber(extracted.feeAmount),
-      receiptInterestRate: this.toOptionalNumber(extracted.receiptInterestRate),
-      minimumPaymentRate: this.toOptionalNumber(extracted.minimumPaymentRate),
-      minimumPaymentAmount: this.toOptionalNumber(
-        extracted.minimumPaymentAmount,
-      ),
-      referenceNumber: extracted.referenceNo || undefined,
-    });
+    try {
+      const existing = await this.transactionsService.findBySourceSlipId(
+        userId,
+        slipId,
+      );
+      const transaction =
+        existing ||
+        (await this.transactionsService.create(
+          userId,
+          {
+            categoryId,
+            type:
+              type === "income"
+                ? TransactionType.INCOME
+                : TransactionType.EXPENSE,
+            amount,
+            date: date.toISOString(),
+            description: extracted.toName || undefined,
+            note: extracted.referenceNo
+              ? `เลขอ้างอิง ${extracted.referenceNo}`
+              : undefined,
+            slipImageUrl: slipUpload.imageUrl,
+            documentType: extracted.documentType || undefined,
+            cashAdvanceAmount: this.toOptionalNumber(
+              extracted.cashAdvanceAmount,
+            ),
+            feeAmount: this.toOptionalNumber(extracted.feeAmount),
+            receiptInterestRate: this.toOptionalNumber(
+              extracted.receiptInterestRate,
+            ),
+            minimumPaymentRate: this.toOptionalNumber(
+              extracted.minimumPaymentRate,
+            ),
+            minimumPaymentAmount: this.toOptionalNumber(
+              extracted.minimumPaymentAmount,
+            ),
+            referenceNumber: extracted.referenceNo || undefined,
+          },
+          slipId,
+        ));
 
-    slipUpload.status = SlipUploadStatus.SUCCESS;
-    slipUpload.transactionId = (transaction._id as any).toString();
-    await slipUpload.save();
-    return { transaction, amount, date };
+      await this.finalizeSlipClaim(
+        slipId,
+        userId,
+        claimToken,
+        transaction._id.toString(),
+      );
+      return {
+        transaction,
+        amount: Number(transaction.amount),
+        date: new Date(transaction.date),
+      };
+    } catch (error: any) {
+      const existing = await this.transactionsService.findBySourceSlipId(
+        userId,
+        slipId,
+      );
+      if (existing) {
+        await this.finalizeSlipClaim(
+          slipId,
+          userId,
+          claimToken,
+          existing._id.toString(),
+        );
+        return {
+          transaction: existing,
+          amount: Number(existing.amount),
+          date: new Date(existing.date),
+        };
+      }
+
+      await this.releaseSlipClaim(slipId, userId, claimToken);
+      throw error;
+    }
+  }
+
+  private async finalizeSlipClaim(
+    slipId: string,
+    userId: string,
+    claimToken: string,
+    transactionId: string,
+  ) {
+    const result = await this.slipUploadModel.findOneAndUpdate(
+      {
+        _id: slipId,
+        userId,
+        saveClaimToken: claimToken,
+        transactionId: { $exists: false },
+      },
+      {
+        $set: {
+          transactionId,
+          status: SlipUploadStatus.SUCCESS,
+        },
+        $unset: { saveClaimToken: 1, saveClaimExpiresAt: 1 },
+      },
+      { new: true },
+    );
+    if (result) return;
+
+    const current = await this.slipUploadModel.findOne({ _id: slipId, userId });
+    if (current?.transactionId?.toString() !== transactionId) {
+      throw new BadRequestException("บันทึกสลิปไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+    }
+  }
+
+  private async releaseSlipClaim(
+    slipId: string,
+    userId: string,
+    claimToken: string,
+  ) {
+    await this.slipUploadModel.updateOne(
+      { _id: slipId, userId, saveClaimToken: claimToken },
+      { $unset: { saveClaimToken: 1, saveClaimExpiresAt: 1 } },
+    );
   }
 
   private toOptionalNumber(value: unknown): number | undefined {

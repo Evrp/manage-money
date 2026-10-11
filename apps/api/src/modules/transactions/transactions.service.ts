@@ -124,7 +124,11 @@ export class TransactionsService {
     return { month, year };
   }
 
-  async create(userId: string, createTransactionDto: CreateTransactionDto) {
+  async create(
+    userId: string,
+    createTransactionDto: CreateTransactionDto,
+    sourceSlipId?: string,
+  ) {
     const date = new Date(createTransactionDto.date);
     const paymentFields = await this.resolvePaymentFields(
       userId,
@@ -150,6 +154,9 @@ export class TransactionsService {
       slipImageUrl,
       userId: new Types.ObjectId(userId),
       categoryId: new Types.ObjectId(createTransactionDto.categoryId),
+      ...(sourceSlipId
+        ? { sourceSlipId: new Types.ObjectId(sourceSlipId) }
+        : {}),
       date,
       month,
       year,
@@ -188,6 +195,14 @@ export class TransactionsService {
 
     const [refreshed] = await this.refreshSlipUrls([populated]);
     return refreshed;
+  }
+
+  async findBySourceSlipId(userId: string, sourceSlipId: string) {
+    const userObjectId = new Types.ObjectId(userId);
+    return this.transactionModel.findOne({
+      sourceSlipId: new Types.ObjectId(sourceSlipId),
+      userId: { $in: [userId, userObjectId] },
+    });
   }
 
   async remove(userId: string, id: string) {

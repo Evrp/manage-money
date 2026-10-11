@@ -24,6 +24,12 @@ export class SlipUpload extends Document implements ISlipUpload {
   transactionId?: string;
 
   @Prop()
+  saveClaimToken?: string;
+
+  @Prop()
+  saveClaimExpiresAt?: Date;
+
+  @Prop()
   errorMessage?: string;
 
   @Prop()
