@@ -113,6 +113,24 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
   const { data: creditCards = [] } = useCreditCards();
   const lineUserId = useAuthStore((state) => state.user?.lineUserId);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const trayButtonRef = useRef<HTMLButtonElement>(null);
+  const trayDragRef = useRef<{ startX: number; startY: number; left: number; top: number; moved: boolean } | null>(null);
+  const suppressTrayClickRef = useRef(false);
+  const [trayDragging, setTrayDragging] = useState(false);
+  const [trayPosition, setTrayPosition] = useState<{ left: number; top: number } | null>(null);
+
+  useEffect(() => {
+    const keepTrayVisible = () => {
+      const button = trayButtonRef.current;
+      if (!button) return;
+      setTrayPosition((position) => position && ({
+        left: position.left < window.innerWidth / 2 ? 0 : Math.max(0, window.innerWidth - button.offsetWidth),
+        top: Math.max(0, Math.min(position.top, window.innerHeight - button.offsetHeight)),
+      }));
+    };
+    window.addEventListener("resize", keepTrayVisible);
+    return () => window.removeEventListener("resize", keepTrayVisible);
+  }, []);
   const swipeStartRef = useRef<{ id: string; x: number; y: number } | null>(null);
   const hasHydratedPendingUploads = useRef(false);
   const draftStorageKey = `moneyflow-slip-drafts:${lineUserId || "anonymous"}`;
@@ -629,8 +647,51 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
       {!isOpen && items.length > 0 && (
         <button
           type="button"
-          onClick={onOpen}
-          className="fixed bottom-5 right-5 z-[90] flex min-h-14 items-center gap-3 rounded-2xl bg-indigo-600 px-4 py-3 text-left text-white shadow-xl shadow-indigo-950/25 transition-transform hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 active:scale-95"
+          ref={trayButtonRef}
+          onPointerDown={(event) => {
+            if (event.button !== 0) return;
+            const rect = event.currentTarget.getBoundingClientRect();
+            trayDragRef.current = { startX: event.clientX, startY: event.clientY, left: rect.left, top: rect.top, moved: false };
+            event.currentTarget.setPointerCapture(event.pointerId);
+          }}
+          onPointerMove={(event) => {
+            const drag = trayDragRef.current;
+            if (!drag) return;
+            const dx = event.clientX - drag.startX;
+            const dy = event.clientY - drag.startY;
+            if (!drag.moved && Math.hypot(dx, dy) < 6) return;
+            drag.moved = true;
+            setTrayDragging(true);
+            setTrayPosition({
+              left: Math.max(0, Math.min(drag.left + dx, window.innerWidth - event.currentTarget.offsetWidth)),
+              top: Math.max(0, Math.min(drag.top + dy, window.innerHeight - event.currentTarget.offsetHeight)),
+            });
+          }}
+          onPointerUp={(event) => {
+            const drag = trayDragRef.current;
+            suppressTrayClickRef.current = Boolean(drag?.moved);
+            if (drag?.moved) {
+              const width = event.currentTarget.offsetWidth;
+              const left = Math.max(0, Math.min(drag.left + event.clientX - drag.startX, window.innerWidth - width));
+              setTrayPosition({
+                left: left + width / 2 < window.innerWidth / 2 ? 0 : Math.max(0, window.innerWidth - width),
+                top: Math.max(0, Math.min(drag.top + event.clientY - drag.startY, window.innerHeight - event.currentTarget.offsetHeight)),
+              });
+            }
+            trayDragRef.current = null;
+            setTrayDragging(false);
+          }}
+          onPointerCancel={(event) => {
+            trayDragRef.current = null;
+            setTrayDragging(false);
+            setTrayPosition((position) => position && ({ ...position, left: position.left + event.currentTarget.offsetWidth / 2 < window.innerWidth / 2 ? 0 : Math.max(0, window.innerWidth - event.currentTarget.offsetWidth) }));
+          }}
+          onClick={() => {
+            if (suppressTrayClickRef.current) { suppressTrayClickRef.current = false; return; }
+            onOpen();
+          }}
+          style={{ ...(trayPosition ? { left: trayPosition.left, top: trayPosition.top, right: "auto", bottom: "auto" } : {}), touchAction: "none", transition: trayDragging || reduceMotion ? "none" : "left 220ms ease-out, top 220ms ease-out" }}
+          className="fixed bottom-5 right-0 z-[90] flex min-h-14 items-center gap-3 rounded-2xl bg-indigo-600 px-4 py-3 text-left text-white shadow-xl shadow-indigo-950/25 transition-transform hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 active:scale-95"
           aria-label={`เปิดถาดอัปโหลดสลิป มี ${items.length} รายการ`}
         >
           <span className="relative grid h-9 w-9 place-items-center rounded-xl bg-white/15">
@@ -639,7 +700,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
               {items.length}
             </span>
           </span>
-          <span className="leading-tight">
+          <span className="hidden leading-tight sm:block">
             <strong className="block text-sm">ถาดอัปโหลด</strong>
             <small className="block text-xs text-indigo-100">
               {uploadingCount > 0
