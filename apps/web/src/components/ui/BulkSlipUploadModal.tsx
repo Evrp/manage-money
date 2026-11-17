@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   X,
   Trash2,
@@ -7,14 +8,13 @@ import {
   Loader2,
   Plus,
   Receipt,
-  Sparkles,
   ZoomIn,
-  Eye,
   FileText,
   ShoppingBag,
   ChevronRight,
   ChevronUp,
   ChevronDown,
+  SlidersHorizontal,
   CalendarDays,
   ArrowDownUp,
 } from "lucide-react";
@@ -81,6 +81,9 @@ const getDefaultCycle = (dateString?: string) => {
   return { targetMonth: date.getMonth() + 1, targetYear: date.getFullYear() };
 };
 
+const slipDateFormat = new Intl.DateTimeFormat("th-TH", { day: "numeric", month: "short", year: "2-digit" });
+const cycleFormat = new Intl.DateTimeFormat("th-TH", { month: "short", year: "2-digit" });
+
 const cycleInputValue = (month?: number, year?: number) =>
   month && year ? `${year}-${String(month).padStart(2, "0")}` : "";
 
@@ -104,13 +107,18 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
   onSuccess,
 }) => {
   const queryClient = useQueryClient();
+  const reduceMotion = useReducedMotion();
+  const [openDetailsId, setOpenDetailsId] = useState<string | null>(null);
   const { data: categories = [] } = useCategories();
   const { data: creditCards = [] } = useCreditCards();
   const lineUserId = useAuthStore((state) => state.user?.lineUserId);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const swipeStartRef = useRef<{ id: string; x: number; y: number } | null>(null);
   const hasHydratedPendingUploads = useRef(false);
   const draftStorageKey = `moneyflow-slip-drafts:${lineUserId || "anonymous"}`;
 
+  const [swipedItemId, setSwipedItemId] = useState<string | null>(null);
+  const [swipeOffset, setSwipeOffset] = useState<number | null>(null);
   const [items, setItems] = useState<SlipItemState[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showCreateCategory, setShowCreateCategory] = useState(false);
@@ -776,13 +784,14 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
         >
           <button
             onClick={() => setZoomedImage(null)}
+            aria-label="ปิดภาพสลิปขนาดเต็ม"
             className="absolute top-6 right-6 p-3 bg-white/20 hover:bg-white/30 text-white rounded-full transition-all"
           >
             <X size={28} />
           </button>
           <img
             src={zoomedImage}
-            alt="Full Slip Preview"
+            alt="ภาพสลิปขนาดเต็ม"
             className="max-w-full max-h-[90vh] object-contain rounded-2xl shadow-2xl border border-white/10"
             onClick={(e) => e.stopPropagation()}
           />
@@ -801,50 +810,24 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
           aria-labelledby="bulk-upload-title"
           className="bg-slate-50 w-full max-w-5xl rounded-t-2xl sm:rounded-2xl shadow-2xl animate-in slide-in-from-bottom duration-300 h-[96dvh] sm:h-auto sm:max-h-[90vh] flex flex-col overflow-hidden"
         >
-          {/* Header */}
-          <div className="flex items-start justify-between gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-6 sm:py-5 shrink-0">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2.5">
-                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-indigo-100 text-indigo-600">
-                  <Sparkles size={20} />
-                </div>
-                <div className="min-w-0">
-                  <h2 id="bulk-upload-title" className="text-lg sm:text-xl font-black text-slate-900">
-                    ตรวจสอบสลิปก่อนบันทึก
-                  </h2>
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    {items.length} รายการในถาดอัปโหลด
-                  </p>
-                </div>
+          <header className="shrink-0 bg-[rgb(var(--hero))] px-4 py-3 text-[rgb(var(--hero-ink))] sm:px-6 sm:py-4">
+            <div className="flex items-center gap-3">
+              <Receipt size={24} aria-hidden="true" />
+              <div className="min-w-0 flex-1">
+                <h2 id="bulk-upload-title" className="text-lg font-semibold sm:text-xl">ตรวจสอบสลิป</h2>
+                <p className="text-xs leading-relaxed opacity-90" aria-live="polite">
+                  พร้อมบันทึก {validSuccessItems.length} จาก {items.length} รายการ
+                  {uploadingCount > 0 && ` · กำลังอ่าน ${uploadingCount}`}
+                  {errorCount > 0 && ` · อ่านไม่สำเร็จ ${errorCount}`}
+                </p>
               </div>
-              <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">
-                  <CheckCircle2 size={13} />
-                  พร้อมบันทึก {readyFilteredItems.length}
-                </span>
-                {uploadingCount > 0 && (
-                  <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-indigo-700">
-                    กำลังอ่าน {uploadingCount}
-                  </span>
-                )}
-                {errorCount > 0 && (
-                  <span className="rounded-full bg-rose-50 px-2.5 py-1 text-rose-700">
-                    ต้องตรวจสอบ {errorCount}
-                  </span>
-                )}
-              </div>
+              <button type="button" onClick={onMinimize} disabled={isSubmitting}
+                aria-label="ย่อเก็บถาดอัปโหลด" title="ย่อเก็บไว้ทำต่อภายหลัง"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-full hover:bg-white/10">
+                <X size={21} />
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={onMinimize}
-              disabled={isSubmitting}
-              aria-label="ย่อเก็บถาดอัปโหลด"
-              title="ย่อเก็บไว้ทำต่อภายหลัง"
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 disabled:opacity-50"
-            >
-              <X size={21} />
-            </button>
-          </div>
+          </header>
 
           {/* Hidden File Input for Add More */}
           <input
@@ -857,7 +840,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
           />
 
           {/* List of Slips */}
-          <div className="flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-6 sm:py-5 space-y-4 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto overscroll-contain px-3 py-2 sm:px-6 sm:py-4 space-y-2 custom-scrollbar">
             {items.length === 0 ? (
               <div className="text-center py-12 text-gray-400">
                 <Receipt size={48} className="mx-auto mb-2 opacity-50" />
@@ -865,16 +848,18 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
               </div>
             ) : (
               <>
-                <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
-                  <button type="button" onClick={() => setIsFilterPanelOpen((open) => !open)} className="flex w-full items-center justify-between gap-3 text-left">
-                    <span className="flex items-center gap-2 text-sm font-black text-slate-800">
-                      <CalendarDays size={17} className="text-indigo-600" />
-                      ค้นหารายการตามวันที่
-                      <span className="text-xs font-bold text-slate-400">{filteredVisibleItems.length}/{visibleItems.length}</span>
+                <section className="border-b border-slate-200 pb-1">
+                  <button type="button" aria-expanded={isFilterPanelOpen} onClick={() => setIsFilterPanelOpen((open) => !open)}
+                    className="flex min-h-11 w-full items-center justify-between gap-3 rounded-lg px-1 text-left">
+                    <span className="text-sm font-semibold text-slate-800">สลิปที่แสดง · {filteredVisibleItems.length} ใบ</span>
+                    <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-600">
+                      <SlidersHorizontal size={15} /> ตัวกรอง
+                      <ChevronDown size={15} className={`transition-transform duration-200 motion-reduce:transition-none ${isFilterPanelOpen ? "rotate-180" : ""}`} />
                     </span>
-                    <span className="flex items-center gap-1 text-xs font-bold text-slate-500">ตัวกรอง <ChevronDown size={17} className={`transition-transform ${isFilterPanelOpen ? "rotate-180" : ""}`} /></span>
                   </button>
-                  {isFilterPanelOpen && <div className="mt-3">
+                  <AnimatePresence initial={false}>
+                  {isFilterPanelOpen && <motion.div initial={{ height: 0, opacity: 0, overflow: "hidden" }} animate={{ height: "auto", opacity: 1, transitionEnd: { overflow: "visible" } }} exit={{ height: 0, opacity: 0, overflow: "hidden" }} transition={{ duration: reduceMotion ? 0 : 0.2 }}>
+                    <div className="mt-3">
                     {(fromDate || toDate) && (
                       <button
                         type="button"
@@ -954,8 +939,10 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                     </div>
                   )}
                     </div>
-                  }
+                  </motion.div>}
+                  </AnimatePresence>
                 </section>
+                <p className="px-1 text-xs text-slate-500 sm:hidden">ปัดการ์ดสลิปไปทางซ้ายเพื่อแสดงปุ่มลบ</p>
                 {isPendingViewLoading ? (
                   <div className="grid min-h-40 place-items-center rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm font-medium text-slate-500">
                     <Loader2 size={22} className="animate-spin text-indigo-600" />
@@ -986,15 +973,70 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                         ? "กรอกข้อมูลเอง"
                         : "อ่านสลิปแล้ว";
                 const isReadyToSave = readyItemIds.has(item.id);
+                const slipDate = new Date(item.formData.date + "T12:00:00");
+                const dateLabel = Number.isNaN(slipDate.getTime()) ? "ยังไม่ระบุวันที่" : slipDateFormat.format(slipDate);
+                const { targetMonth, targetYear } = item.formData;
+                const cycleLabel = targetMonth && targetYear ? cycleFormat.format(new Date(targetYear, targetMonth - 1, 1)) : "ยังไม่ระบุ";
                 const canMarkReady = isReadyCandidate(item);
 
                 return (
                   <div
                     key={item.id}
-                    className="bg-white rounded-2xl p-3 sm:p-5 border border-slate-200 shadow-sm relative transition-shadow hover:shadow-md"
+                    className="relative rounded-2xl bg-rose-600 shadow-sm"
                   >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void handleRemoveItem(item.id);
+                        setSwipedItemId(null);
+                      }}
+                      tabIndex={swipedItemId === item.id ? 0 : -1}
+                      aria-hidden={swipedItemId !== item.id}
+                      aria-label={`ลบสลิปใบที่ ${index + 1}`}
+                      className="absolute inset-y-0 right-0 flex w-20 flex-col items-center justify-center gap-1 rounded-r-2xl text-sm font-bold text-white"
+                    >
+                      <Trash2 size={22} /> ลบ
+                    </button>
+                    <motion.div
+                      animate={{ x: swipeOffset !== null && swipeStartRef.current?.id === item.id ? swipeOffset : swipedItemId === item.id ? -80 : 0 }}
+                      transition={{ duration: swipeOffset !== null || reduceMotion ? 0 : 0.2 }}
+                      onTouchStart={(event) => {
+                        const target = event.target as HTMLElement;
+                        if (target.closest("input, select, textarea") || (isExpanded && target.closest("button"))) return;
+                        const touch = event.touches[0];
+                        swipeStartRef.current = { id: item.id, x: touch.clientX, y: touch.clientY };
+                      }}
+                      onTouchMove={(event) => {
+                        const start = swipeStartRef.current;
+                        if (!start || start.id !== item.id) return;
+                        const touch = event.touches[0];
+                        const dx = touch.clientX - start.x;
+                        const dy = touch.clientY - start.y;
+                        if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+                          const base = swipedItemId === item.id ? -80 : 0;
+                          setSwipeOffset(Math.max(-80, Math.min(0, base + dx)));
+                        }
+                      }}
+                      onTouchEnd={(event) => {
+                        const start = swipeStartRef.current;
+                        if (start && start.id === item.id) {
+                          const touch = event.changedTouches[0];
+                          const dx = touch.clientX - start.x;
+                          const dy = touch.clientY - start.y;
+                          if (Math.abs(dx) > 35 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+                            event.preventDefault();
+                            setSwipedItemId(dx < 0 ? item.id : null);
+                          }
+                        }
+                        swipeStartRef.current = null;
+                        setSwipeOffset(null);
+                      }}
+                      onTouchCancel={() => { swipeStartRef.current = null; setSwipeOffset(null); }}
+                      className="relative rounded-2xl border border-slate-200 bg-white p-3 sm:p-5"
+                    >
+                    <AnimatePresence initial={false} mode="wait">
                     {!isExpanded ? (
-                      <div className="flex items-center gap-3 sm:gap-4">
+                      <motion.div key="collapsed" initial={{ height: 0, opacity: 0, overflow: "hidden" }} animate={{ height: "auto", opacity: 1, transitionEnd: { overflow: "visible" } }} exit={{ height: 0, opacity: 0, overflow: "hidden" }} transition={{ duration: reduceMotion ? 0 : 0.16 }} className="flex items-center gap-3 sm:gap-4">
                         <input
                           type="checkbox"
                           checked={selectedItemIds.has(item.id)}
@@ -1008,6 +1050,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                           onClick={() => setExpandedItemId(item.id)}
                           className="flex min-w-0 flex-1 items-center gap-3 text-left"
                           aria-label={`เปิดแก้ไขสลิปใบที่ ${index + 1}`}
+                          aria-expanded={false}
                         >
                           <span className="relative grid h-16 w-14 shrink-0 place-items-center overflow-hidden rounded-lg border border-slate-200 bg-slate-100 sm:h-[76px] sm:w-16">
                             {isPdf ? (
@@ -1060,92 +1103,41 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                             <ChevronRight size={18} />
                           </span>
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveItem(item.id)}
-                          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
-                          aria-label={`ลบสลิปใบที่ ${index + 1}`}
-                          title="ลบสลิปนี้"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
+                      </motion.div>
                     ) : (
-                    /* Main Flex Layout: Image Prominent on Left/Top, Form on Right */
-                    <div className="flex flex-col sm:flex-row items-stretch gap-4 sm:gap-5">
-                      {/* Prominent Slip Image or PDF Container */}
-                      <div className="sm:w-52 shrink-0 flex flex-col gap-2">
-                        {isPdf ? (
-                          <div className="relative w-full h-40 sm:h-64 rounded-xl overflow-hidden bg-rose-50 border border-rose-200 shadow-inner flex flex-col items-center justify-center p-4 text-rose-600 gap-2 text-center group">
-                            <div className="bg-rose-100 p-4 rounded-2xl text-rose-500 group-hover:scale-110 transition-transform">
-                              <FileText size={40} />
-                            </div>
-                            <span className="bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase">
-                              PDF Document
-                            </span>
-                            <span
-                              className="text-xs font-bold text-gray-700 truncate w-full px-2"
-                              title={item.file?.name}
-                            >
-                              {item.file?.name || "เอกสาร PDF"}
-                            </span>
-                            {item.file?.size && (
-                              <span className="text-[10px] text-gray-400 font-medium">
-                                {(item.file.size / (1024 * 1024)).toFixed(2)} MB
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <div
-                            onClick={() => setZoomedImage(item.previewUrl)}
-                            className="relative w-full h-40 sm:h-64 rounded-xl overflow-hidden bg-slate-900 border border-indigo-100 shadow-inner group cursor-pointer"
-                          >
-                            <img
-                              src={item.previewUrl}
-                              alt={`Slip ${index + 1}`}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            />
-
-                            {/* Slip Badge Number */}
-                            <div className="absolute top-2 left-2 bg-black/70 text-white text-xs font-black px-2.5 py-1 rounded-xl backdrop-blur-md">
-                              ใบที่ #{index + 1}
-                            </div>
-
-                            {/* Hover Overlay with Zoom Button */}
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 text-white backdrop-blur-[2px]">
-                              <ZoomIn size={28} />
-                              <span className="text-xs font-bold">
-                                ดูภาพใหญ่
-                              </span>
-                            </div>
-                          </div>
-                        )}
-
+                    <motion.div key="expanded" initial={{ height: 0, opacity: 0, overflow: "hidden" }} animate={{ height: "auto", opacity: 1, transitionEnd: { overflow: "visible" } }} exit={{ height: 0, opacity: 0, overflow: "hidden" }} transition={{ duration: reduceMotion ? 0 : 0.2 }} className="flex flex-col items-stretch gap-3 sm:flex-row sm:gap-5">
+                      <div className="min-w-0 shrink-0 sm:w-48">
                         <button
                           type="button"
                           onClick={() => {
-                            if (isPdf) {
-                              window.open(
-                                item.previewUrl || item.formData.slipImageUrl,
-                                "_blank",
-                              );
-                            } else {
-                              setZoomedImage(item.previewUrl);
-                            }
+                            if (isPdf) window.open(item.previewUrl || item.formData.slipImageUrl, "_blank", "noopener,noreferrer");
+                            else setZoomedImage(item.previewUrl);
                           }}
-                          className="w-full min-h-10 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                          disabled={!item.previewUrl && !(isPdf && item.formData.slipImageUrl)}
+                          className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-2 text-left hover:border-indigo-300 sm:flex-col sm:items-stretch sm:p-3"
                         >
-                          <Eye size={16} />
-                          <span>
-                            {isPdf ? "เปิดไฟล์ PDF" : "ซูมสลิปขนาดเต็ม"}
+                          <span className="grid h-14 w-12 shrink-0 place-items-center overflow-hidden rounded-md bg-white sm:h-52 sm:w-full">
+                            {isPdf ? <FileText size={26} /> : item.previewUrl ? (
+                              <img src={item.previewUrl} alt="" className="h-full w-full object-contain" />
+                            ) : <Receipt size={24} />}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-xs text-slate-500">สลิปใบที่ {index + 1}</span>
+                            <strong className="block truncate text-base font-semibold text-slate-900">{item.formData.note || "รายละเอียดสลิป"}</strong>
+                            {isPdf && <span className="block truncate text-xs text-slate-500" title={item.file?.name}>
+                              {item.file?.name || "เอกสาร PDF"}{item.file?.size ? ` · ${(item.file.size / 1048576).toFixed(2)} MB` : ""}
+                            </span>}
+                          </span>
+                          <span className="inline-flex shrink-0 items-center gap-1 text-xs font-bold text-indigo-700">
+                            <ZoomIn size={16} /> {isPdf ? "เปิด PDF" : "ดูสลิป"}
                           </span>
                         </button>
                       </div>
 
                       {/* Details & Form Controls */}
-                      <div className="flex min-w-0 flex-1 flex-col gap-4">
+                      <div className="flex min-w-0 flex-1 flex-col gap-2.5">
                         {/* Top Status & Remove Bar */}
-                        <div className="order-0 flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+                        <div className="flex items-center justify-between gap-2">
                           {/* Status Badge */}
                           <div className="flex min-w-0 flex-wrap items-center gap-2">
                           <input
@@ -1161,14 +1153,14 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                               <span>กำลังวิเคราะห์ด้วย AI...</span>
                             </div>
                           )}
-                          {item.status === "success" && (
+                          {item.status === "success" && !isReadyToSave && (
                             <div className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold ${
                               item.requiresManualEntry
                                 ? "bg-amber-50 text-amber-700"
                                 : "bg-emerald-50 text-emerald-600"
                             }`}>
                               {item.requiresManualEntry ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}
-                              <span>{item.requiresManualEntry ? "AI อ่านสลิปไม่ได้ — กรุณากรอกข้อมูลเอง" : "อ่านสลิปเรียบร้อย"}</span>
+                              <span>{item.requiresManualEntry ? "กรอกข้อมูลเอง" : "อ่านสลิปแล้ว"}</span>
                             </div>
                           )}
                           {isReadyToSave && (
@@ -1189,44 +1181,19 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                             <button
                               type="button"
                               onClick={() => setExpandedItemId(null)}
-                              className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                              className="grid h-11 w-11 place-items-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
                               aria-label="ย่อรายละเอียดสลิป"
                               title="ย่อรายละเอียด"
                             >
                               <ChevronUp size={18} />
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveItem(item.id)}
-                              className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
-                              aria-label={`ลบสลิปใบที่ ${index + 1}`}
-                              title="ลบสลิปนี้"
-                            >
-                              <Trash2 size={18} />
-                            </button>
                           </div>
                         </div>
 
-                        <div id={`slip-field-${item.id}-payment`} className="order-3">
-                          <PaymentSourceSelect
-                            paymentMethod={item.formData.paymentMethod}
-                            bankAccountId={item.formData.bankAccountId}
-                            creditCardId={item.formData.creditCardId}
-                            label={item.formData.type === "income" ? "รับจาก" : "ชำระด้วย"}
-                            onChange={({ paymentMethod, bankAccountId, creditCardId }) => {
-                              handleUpdateItemForm(item.id, "paymentMethod", paymentMethod);
-                              handleUpdateItemForm(item.id, "bankAccountId", bankAccountId || "");
-                              handleUpdateItemForm(item.id, "creditCardId", creditCardId || "");
-                            }}
-                            onAddBankAccount={() => setActiveItemForBankAccount(item.id)}
-                          />
-                          {readinessErrors[item.id]?.includes("payment") && <p className="mt-1 text-xs font-bold text-rose-600">กรุณาเลือกบัญชีหรือบัตรที่ใช้ชำระ</p>}
-                        </div>
-
                         {/* Amount & Type Input Row */}
-                        <div className="order-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                        <div className="grid grid-cols-2 items-start gap-2">
                           {/* Type Selector */}
-                          <div className="flex bg-gray-100 p-1 rounded-2xl">
+                          <div className="flex min-w-0 rounded-xl bg-gray-100 p-0.5">
                             <button
                               type="button"
                               onClick={() =>
@@ -1236,6 +1203,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                                   "expense",
                                 )
                               }
+                              aria-pressed={item.formData.type === "expense"}
                               className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
                                 item.formData.type === "expense"
                                   ? "bg-surface text-red-500 shadow-sm"
@@ -1253,6 +1221,7 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                                   "income",
                                 )
                               }
+                              aria-pressed={item.formData.type === "income"}
                               className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
                                 item.formData.type === "income"
                                   ? "bg-surface text-emerald-500 shadow-sm"
@@ -1264,12 +1233,14 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                           </div>
 
                           {/* Amount Input */}
-                          <div id={`slip-field-${item.id}-amount`} className="relative sm:col-span-2">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-600 text-base font-black">
+                          <div id={`slip-field-${item.id}-amount`} className="relative">
+                            <span className="absolute left-3 top-2.5 text-indigo-600 text-base font-black">
                               ฿
                             </span>
                             <input
                               type="number"
+                              inputMode="decimal"
+                              aria-label="จำนวนเงิน (บาท)"
                               placeholder="0.00"
                               value={item.formData.amount}
                               onChange={(e) =>
@@ -1279,143 +1250,179 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                                   e.target.value,
                                 )
                               }
-                              className={`w-full bg-gray-50 border rounded-2xl py-2 pl-9 pr-4 text-lg font-black text-indigo-600 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 ${readinessErrors[item.id]?.includes("amount") ? "border-rose-500 ring-2 ring-rose-100" : "border-gray-200"}`}
+                              className={`w-full bg-gray-50 border rounded-2xl py-2 pl-9 pr-4 text-lg font-semibold tabular-nums text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 ${readinessErrors[item.id]?.includes("amount") ? "border-rose-500 ring-2 ring-rose-100" : "border-gray-200"}`}
                             />
                             {readinessErrors[item.id]?.includes("amount") && <p className="mt-1 text-xs font-bold text-rose-600">กรุณาระบุจำนวนเงิน</p>}
                           </div>
                         </div>
 
-                        <div id={`slip-field-${item.id}-category`} className="order-5">
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5">
-                            หมวดหมู่
-                          </label>
-                          {(() => {
-                            const selectedCategory = filteredCats.find(
-                              (category) => category._id === item.formData.categoryId,
-                            );
-
-                            return (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setActiveItemForCategory(item.id);
-                                  setIsCategoryPickerOpen(true);
-                                }}
-                                className={`flex min-h-12 w-full items-center justify-between rounded-xl border px-3 text-left transition-colors ${
-                                  readinessErrors[item.id]?.includes("category")
-                                    ? "border-rose-500 bg-rose-50 text-rose-700"
-                                    : selectedCategory
-                                    ? "border-indigo-200 bg-indigo-50 text-indigo-950"
-                                    : "border-dashed border-slate-300 bg-white text-slate-500 hover:border-indigo-400 hover:bg-indigo-50"
-                                }`}
-                              >
-                                <span className="flex min-w-0 items-center gap-2.5">
-                                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white text-lg shadow-sm">
-                                    {selectedCategory?.icon || "📦"}
-                                  </span>
-                                  <span className="truncate text-sm font-bold">
-                                    {selectedCategory?.name || "เลือกหมวดหมู่"}
-                                  </span>
-                                </span>
-                                <ChevronRight size={18} className="shrink-0" />
-                              </button>
-                            );
-                          })()}
-                          {readinessErrors[item.id]?.includes("category") && <p className="mt-1 text-xs font-bold text-rose-600">กรุณาเลือกหมวดหมู่</p>}
-                        </div>
-
-                        {/* Date & Note Inputs */}
-                        <div className="order-1 grid grid-cols-1 gap-3 pt-1 sm:grid-cols-2">
-                          <div>
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">
-                              วันที่
+                        <div className="grid grid-cols-2 items-start gap-2 max-[359px]:grid-cols-1">
+                          <div id={`slip-field-${item.id}-category`} className="min-w-0">
+                            <label className="text-xs font-semibold text-slate-600 block mb-1.5">
+                              หมวดหมู่
                             </label>
-                            <input
-                              type="date"
-                              value={item.formData.date}
-                              onChange={(e) => {
-                                const date = e.target.value;
-                                handleUpdateItemForm(item.id, "date", date);
-                                if (!item.formData.cycleManuallySelected) {
-                                  const cycle = getDefaultCycle(date);
-                                  handleUpdateItemForm(item.id, "targetMonth", cycle.targetMonth);
-                                  handleUpdateItemForm(item.id, "targetYear", cycle.targetYear);
-                                }
-                              }}
-                              className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2 px-3 text-xs font-bold text-gray-700"
-                            />
+                            {(() => {
+                              const selectedCategory = filteredCats.find(
+                                (category) => category._id === item.formData.categoryId,
+                              );
+
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveItemForCategory(item.id);
+                                    setIsCategoryPickerOpen(true);
+                                  }}
+                                  className={`flex min-h-12 w-full items-center justify-between rounded-xl border px-3 text-left transition-colors ${
+                                    readinessErrors[item.id]?.includes("category")
+                                      ? "border-rose-500 bg-rose-50 text-rose-700"
+                                      : selectedCategory
+                                      ? "border-indigo-200 bg-indigo-50 text-indigo-950"
+                                      : "border-dashed border-slate-300 bg-white text-slate-500 hover:border-indigo-400 hover:bg-indigo-50"
+                                  }`}
+                                >
+                                  <span className="flex min-w-0 items-center gap-2.5">
+                                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white text-lg shadow-sm">
+                                      {selectedCategory?.icon || "📦"}
+                                    </span>
+                                    <span className="truncate text-sm font-bold">
+                                      {selectedCategory?.name || "เลือกหมวดหมู่"}
+                                    </span>
+                                  </span>
+                                  <ChevronRight size={18} className="shrink-0" />
+                                </button>
+                              );
+                            })()}
+                            {readinessErrors[item.id]?.includes("category") && <p className="mt-1 text-xs font-bold text-rose-600">กรุณาเลือกหมวดหมู่</p>}
                           </div>
-                          <div>
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">
-                              โน้ต / คำอธิบาย
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="โน้ต..."
-                              value={item.formData.note}
-                              onChange={(e) =>
-                                handleUpdateItemForm(
-                                  item.id,
-                                  "note",
-                                  e.target.value,
-                                )
-                              }
-                              className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2 px-3 text-xs font-bold text-gray-700 placeholder:text-gray-300"
+                          <div id={`slip-field-${item.id}-payment`} className="min-w-0">
+                            <PaymentSourceSelect
+                              paymentMethod={item.formData.paymentMethod}
+                              bankAccountId={item.formData.bankAccountId}
+                              creditCardId={item.formData.creditCardId}
+                              label={item.formData.type === "income" ? "รับจาก" : "ชำระด้วย"}
+                              onChange={({ paymentMethod, bankAccountId, creditCardId }) => {
+                                handleUpdateItemForm(item.id, "paymentMethod", paymentMethod);
+                                handleUpdateItemForm(item.id, "bankAccountId", bankAccountId || "");
+                                handleUpdateItemForm(item.id, "creditCardId", creditCardId || "");
+                              }}
+                              onAddBankAccount={() => setActiveItemForBankAccount(item.id)}
                             />
+                            {readinessErrors[item.id]?.includes("payment") && <p className="mt-1 text-xs font-bold text-rose-600">กรุณาเลือกบัญชีหรือบัตรที่ใช้ชำระ</p>}
                           </div>
                         </div>
 
-                        <div className="order-2 rounded-xl border border-indigo-100 bg-indigo-50/70 p-3">
-                          <label className="block text-[11px] font-black text-indigo-950">
-                            นับในรอบบัญชีเดือน
-                          </label>
-                          <div className="mt-2 flex items-center gap-3">
-                            <MonthPickerField
-                              value={cycleInputValue(
-                                item.formData.targetMonth,
-                                item.formData.targetYear,
-                              )}
-                              onChange={(value) => {
-                                if (!value) {
-                                  const cycle = getDefaultCycle(item.formData.date);
-                                  handleUpdateItemForm(item.id, "targetMonth", cycle.targetMonth);
-                                  handleUpdateItemForm(item.id, "targetYear", cycle.targetYear);
-                                  handleUpdateItemForm(item.id, "cycleManuallySelected", false);
-                                  return;
-                                }
-                                const [year, month] = value
-                                  .split("-")
-                                  .map(Number);
-                                handleUpdateItemForm(item.id, "targetMonth", month);
-                                handleUpdateItemForm(item.id, "targetYear", year);
-                                handleUpdateItemForm(item.id, "cycleManuallySelected", true);
-                              }}
-                              ariaLabel="เลือกเดือนรอบบัญชี"
-                              className="min-w-0 flex-1"
-                            />
-                            <span className="hidden text-xs font-bold text-indigo-700 sm:block">
-                              เลือกเดือนได้เอง
+                        <div className="rounded-xl border border-slate-200">
+                          <button type="button" aria-expanded={openDetailsId === item.id} onClick={() => setOpenDetailsId(openDetailsId === item.id ? null : item.id)} className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-left">
+                            <CalendarDays size={17} className="text-slate-500" />
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-xs font-semibold text-slate-700">วันที่ โน้ต และรอบบัญชี</span>
+                              <span className="block text-xs text-slate-500">{dateLabel} · รอบ {cycleLabel}</span>
                             </span>
+                            <ChevronDown size={16} className={`text-slate-500 transition-transform duration-200 motion-reduce:transition-none ${openDetailsId === item.id ? "rotate-180" : ""}`} />
+                          </button>
+                          <AnimatePresence initial={false}>
+                          {openDetailsId === item.id && <motion.div initial={{ height: 0, opacity: 0, overflow: "hidden" }} animate={{ height: "auto", opacity: 1, transitionEnd: { overflow: "visible" } }} exit={{ height: 0, opacity: 0, overflow: "hidden" }} transition={{ duration: reduceMotion ? 0 : 0.2 }}>
+                          <div className="border-t border-slate-200 p-3">
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              <div>
+                                <label htmlFor={`slip-${item.id}-date`} className="text-xs font-semibold text-slate-600 block mb-1">
+                                  วันที่
+                                </label>
+                                <input
+                                  id={`slip-${item.id}-date`}
+                                  type="date"
+                                  value={item.formData.date}
+                                  onChange={(e) => {
+                                    const date = e.target.value;
+                                    handleUpdateItemForm(item.id, "date", date);
+                                    if (!item.formData.cycleManuallySelected) {
+                                      const cycle = getDefaultCycle(date);
+                                      handleUpdateItemForm(item.id, "targetMonth", cycle.targetMonth);
+                                      handleUpdateItemForm(item.id, "targetYear", cycle.targetYear);
+                                    }
+                                  }}
+                                  className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2 px-3 text-xs font-bold text-gray-700"
+                                />
+                              </div>
+                              <div>
+                                <label htmlFor={`slip-${item.id}-note`} className="text-xs font-semibold text-slate-600 block mb-1">
+                                  โน้ต / คำอธิบาย
+                                </label>
+                                <input
+                                  id={`slip-${item.id}-note`}
+                                  type="text"
+                                  placeholder="โน้ต..."
+                                  value={item.formData.note}
+                                  onChange={(e) =>
+                                    handleUpdateItemForm(
+                                      item.id,
+                                      "note",
+                                      e.target.value,
+                                    )
+                                  }
+                                  className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2 px-3 text-xs font-bold text-gray-700 placeholder:text-gray-300"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="mt-2">
+                              <label className="block text-[11px] font-black text-indigo-950">
+                                นับในรอบบัญชีเดือน
+                              </label>
+                              <div className="mt-1 flex items-center gap-3">
+                                <MonthPickerField
+                                  value={cycleInputValue(
+                                    item.formData.targetMonth,
+                                    item.formData.targetYear,
+                                  )}
+                                  onChange={(value) => {
+                                    if (!value) {
+                                      const cycle = getDefaultCycle(item.formData.date);
+                                      handleUpdateItemForm(item.id, "targetMonth", cycle.targetMonth);
+                                      handleUpdateItemForm(item.id, "targetYear", cycle.targetYear);
+                                      handleUpdateItemForm(item.id, "cycleManuallySelected", false);
+                                      return;
+                                    }
+                                    const [year, month] = value
+                                      .split("-")
+                                      .map(Number);
+                                    handleUpdateItemForm(item.id, "targetMonth", month);
+                                    handleUpdateItemForm(item.id, "targetYear", year);
+                                    handleUpdateItemForm(item.id, "cycleManuallySelected", true);
+                                  }}
+                                  ariaLabel="เลือกเดือนรอบบัญชี"
+                                  className="min-w-0 flex-1"
+                                />
+                                <span className="hidden text-xs font-bold text-indigo-700 sm:block">
+                                  เลือกเดือนได้เอง
+                                </span>
+                              </div>
+                            </div>
                           </div>
+                          </motion.div>}
+                          </AnimatePresence>
                         </div>
                         <button
                           type="button"
                           disabled={readyUpdatingItemId === item.id}
                           onClick={() => handleReadyForSave(item, !item.readyForSave)}
-                          className={`order-6 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-black transition-colors ${
+                          className={`flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-black transition-colors ${
                             item.readyForSave
                               ? "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                               : canMarkReady
                                 ? "bg-emerald-700 text-white hover:bg-emerald-800"
-                                : "bg-rose-50 text-rose-700 hover:bg-rose-100"
+                                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                           }`}
                         >
                           {readyUpdatingItemId === item.id ? <Loader2 size={17} className="animate-spin" /> : <CheckCircle2 size={17} />}
                           {item.readyForSave ? "นำออกจากพร้อมบันทึก" : "ยืนยันว่าพร้อมบันทึก"}
                         </button>
                       </div>
-                    </div>
+                    </motion.div>
                     )}
+                    </AnimatePresence>
+                    </motion.div>
                   </div>
                 );
                 })}
@@ -1433,42 +1440,18 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
             </button>
           </div>
 
-          {/* Footer Summary & Action Bar */}
-          <div className="border-t border-slate-200 bg-white px-4 py-4 sm:px-6 shrink-0 space-y-3">
-            {/* Totals Summary */}
-            <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
-              <div className="text-xs space-y-0.5">
-                <span className="flex items-center gap-1.5 text-slate-600 font-bold">
-                  <CheckCircle2 size={15} className="text-emerald-600" />
-                  พร้อมบันทึก {submissionItems.length} จาก {filteredVisibleItems.length} รายการ
-                </span>
-                {uploadingCount > 0 && (
-                  <span className="text-indigo-500 font-bold block animate-pulse">
-                    กำลังวิเคราะห์อีก {uploadingCount} ใบ...
-                  </span>
-                )}
+          <footer className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-2 border-t border-slate-200 bg-white px-4 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-6 sm:pt-3 sm:pb-3">
+            <div className="flex min-w-0 flex-1 flex-wrap gap-x-4 gap-y-1">
+              <div>
+                <span className="block text-xs text-slate-500">รายจ่ายที่แสดง</span>
+                <strong className="text-base tabular-nums text-[rgb(var(--negative))]">฿{totalExpense.toLocaleString("th-TH")}</strong>
               </div>
-
-              <div className="flex gap-5 text-left sm:text-right">
+              {totalIncome > 0 && (
                 <div>
-                  <span className="text-[10px] text-slate-500 font-bold block">
-                    รายจ่ายรวม
-                  </span>
-                  <span className="text-base font-black text-red-500">
-                    ฿{totalExpense.toLocaleString()}
-                  </span>
+                  <span className="block text-xs text-slate-500">รายรับที่แสดง</span>
+                  <strong className="text-base tabular-nums text-[rgb(var(--positive))]">฿{totalIncome.toLocaleString("th-TH")}</strong>
                 </div>
-                {totalIncome > 0 && (
-                  <div>
-                    <span className="text-[10px] text-slate-500 font-bold block">
-                      รายรับรวม
-                    </span>
-                    <span className="text-base font-black text-emerald-500">
-                      ฿{totalIncome.toLocaleString()}
-                    </span>
-                  </div>
-                )}
-              </div>
+              )}
             </div>
 
             {/* Save All Button */}
@@ -1480,10 +1463,10 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
                 submissionItems.length === 0 ||
                 uploadingCount > 0
               }
-              className={`flex w-full min-h-[52px] items-center justify-center gap-2 rounded-xl px-4 py-3 font-black text-sm sm:text-base transition-colors shadow-lg ${
+              className={`flex min-h-11 max-w-full items-center justify-center gap-2 rounded-xl px-4 py-3 font-black text-sm sm:text-base transition-colors ${
                 submissionItems.length > 0 && uploadingCount === 0
                   ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200 active:scale-95"
-                  : "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
+                  : "bg-slate-100 text-slate-600 cursor-not-allowed"
               }`}
             >
               {isSubmitting ? (
@@ -1494,11 +1477,11 @@ const BulkSlipUploadModal: React.FC<BulkSlipUploadModalProps> = ({
               ) : (
                 <>
                   <CheckCircle2 size={20} />
-                  <span>{selectedVisibleItems.length > 0 ? "บันทึกที่เลือก" : "บันทึกทั้งหมด"} ({submissionItems.length} รายการ)</span>
+                  <span>{selectedVisibleItems.length > 0 ? "บันทึกที่เลือก" : "บันทึก"} {submissionItems.length} รายการ</span>
                 </>
               )}
             </button>
-          </div>
+          </footer>
         </div>
       </div>}
     </>
